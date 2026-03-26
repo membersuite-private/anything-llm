@@ -1,7 +1,7 @@
 {
-  "name": "anything-llm-server",
+  "name": "growthzone-intelligence-server",
   "version": "1.11.1",
-  "description": "Server endpoints to process or create content for chatting",
+  "description": "GrowthZone Intelligence server endpoints for AI-powered document processing and chat",
   "main": "index.js",
   "author": "Timothy Carambat (Mintplex Labs)",
   "license": "MIT",
