@@ -143,7 +143,7 @@ class Provider {
    * @param {LangChainModelConfig} config - Config to be used to override default connection object.
    * @returns
    */
-  static LangChainChatModel(provider = "openai", config = {}) {
+  static async LangChainChatModel(provider = "openai", config = {}) {
     switch (provider) {
       // Cloud models
       case "openai":
@@ -151,11 +151,20 @@ class Provider {
           apiKey: process.env.OPEN_AI_KEY,
           ...config,
         });
-      case "anthropic":
+      case "anthropic": {
+        let anthropicKey = process.env.ANTHROPIC_API_KEY;
+        if (!anthropicKey || anthropicKey === "sk-ant-oauth-managed") {
+          try {
+            const { getValidAccessToken } = require("../../../AiProviders/anthropic/tokenStorage");
+            anthropicKey = await getValidAccessToken();
+          } catch {}
+        }
+        if (!anthropicKey) throw new Error("No Anthropic authentication. Sign in via Settings > AI Providers.");
         return new ChatAnthropic({
-          apiKey: process.env.ANTHROPIC_API_KEY,
+          apiKey: anthropicKey,
           ...config,
         });
+      }
       case "groq":
         return new ChatOpenAI({
           configuration: {
