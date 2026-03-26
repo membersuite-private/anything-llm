@@ -259,44 +259,7 @@ export default function AnthropicAiOptions({ settings }) {
   );
 }
 
-const DEFAULT_MODELS = [
-  {
-    id: "claude-3-7-sonnet-20250219",
-    name: "Claude 3.7 Sonnet",
-  },
-  {
-    id: "claude-3-5-sonnet-20241022",
-    name: "Claude 3.5 Sonnet (New)",
-  },
-  {
-    id: "claude-3-5-haiku-20241022",
-    name: "Claude 3.5 Haiku",
-  },
-  {
-    id: "claude-3-5-sonnet-20240620",
-    name: "Claude 3.5 Sonnet (Old)",
-  },
-  {
-    id: "claude-3-haiku-20240307",
-    name: "Claude 3 Haiku",
-  },
-  {
-    id: "claude-3-opus-20240229",
-    name: "Claude 3 Opus",
-  },
-  {
-    id: "claude-3-sonnet-20240229",
-    name: "Claude 3 Sonnet",
-  },
-  {
-    id: "claude-2.1",
-    name: "Claude 2.1",
-  },
-  {
-    id: "claude-2.0",
-    name: "Claude 2.0",
-  },
-];
+const DEFAULT_MODELS = [];
 
 function AnthropicModelSelection({ apiKey, settings }) {
   const [models, setModels] = useState(DEFAULT_MODELS);
@@ -328,6 +291,25 @@ function AnthropicModelSelection({ apiKey, settings }) {
         >
           <option disabled={true} selected={true}>
             -- loading available models --
+          </option>
+        </select>
+      </div>
+    );
+  }
+
+  if (!loading && models.length === 0) {
+    return (
+      <div className="flex flex-col w-60">
+        <label className="text-white text-sm font-semibold block mb-3">
+          Chat Model Selection
+        </label>
+        <select
+          name="AnthropicModelPref"
+          disabled={true}
+          className="border-none bg-theme-settings-input-bg border-gray-500 text-white text-sm rounded-lg block w-full p-2.5"
+        >
+          <option disabled={true} selected={true}>
+            -- sign in to load models --
           </option>
         </select>
       </div>
