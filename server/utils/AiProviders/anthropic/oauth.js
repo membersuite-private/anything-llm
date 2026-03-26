@@ -51,7 +51,7 @@ function startCallbackServer(expectedState) {
       <style>body{font-family:system-ui;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;background:#1a1a2e;color:#fff}
       .card{text-align:center;padding:2rem;border-radius:12px;background:#16213e;box-shadow:0 4px 20px rgba(0,0,0,0.3)}
       h1{color:#4ade80;margin-bottom:0.5rem}p{color:#94a3b8}</style></head>
-      <body><div class="card"><h1>✅ Connected!</h1><p>You can close this window and return to GrowthZone Intelligence.</p></div></body></html>`;
+      <body><div class="card"><h1>&#10004; Connected!</h1><p>You can close this window and return to GrowthZone Intelligence.</p></div></body></html>`;
 
     const errorHtml = (msg) => `<!DOCTYPE html><html><head><title>Error</title>
       <style>body{font-family:system-ui;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;background:#1a1a2e;color:#fff}
@@ -90,7 +90,7 @@ function startCallbackServer(expectedState) {
           return;
         }
 
-        res.writeHead(200, { "Content-Type": "text/html" });
+        res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
         res.end(successHtml);
         settleWait({ code, state });
       } catch (err) {

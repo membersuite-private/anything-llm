@@ -272,7 +272,14 @@ class AnthropicLLM {
       };
     } catch (error) {
       console.log(error);
-      return { textResponse: error, metrics: {} };
+      const statusCode = error?.status || error?.statusCode;
+      let friendlyMsg = error?.message || String(error);
+      if (statusCode === 429) {
+        friendlyMsg = "You've hit the Claude rate limit. Please wait a moment and try again.";
+      } else if (statusCode === 401) {
+        friendlyMsg = "Claude authentication failed. Go to Settings > AI Providers to reconnect.";
+      }
+      return { textResponse: friendlyMsg, metrics: {} };
     }
   }
 
@@ -326,11 +333,29 @@ class AnthropicLLM {
       stream.on("error", (event) => {
         const parseErrorMsg = (event) => {
           const error = event?.error?.error;
+          const statusCode = event?.status || event?.error?.status;
+          
+          // Friendly error messages for common issues
+          if (statusCode === 429 || error?.type === "rate_limit_error") {
+            return "You've hit the Claude rate limit. Please wait a moment and try again. If this persists, your Teams plan may have reached its usage cap for this period.";
+          }
+          if (statusCode === 401 || error?.type === "authentication_error") {
+            return "Claude authentication failed. Your session may have expired — go to Settings > AI Providers > LLM and click 'Sign in with Claude' to reconnect.";
+          }
+          if (statusCode === 403 || error?.type === "permission_error") {
+            return "Your Claude account doesn't have permission for this model. Try selecting a different model in Settings > AI Providers > LLM.";
+          }
+          if (statusCode === 529 || error?.type === "overloaded_error") {
+            return "Claude is currently overloaded. Please wait a minute and try again.";
+          }
+          if (error?.type === "invalid_request_error") {
+            return `Claude request error: ${error?.message || "The request was invalid. Try a shorter message or different model."}`;
+          }
           if (!!error)
-            return `Anthropic Error:${error?.type || "unknown"} ${
-              error?.message || "unknown error."
+            return `Claude error (${error?.type || "unknown"}): ${
+              error?.message || "An unexpected error occurred. Please try again."
             }`;
-          return event.message;
+          return event.message || "An unexpected error occurred while communicating with Claude.";
         };
 
         writeResponseChunk(response, {
