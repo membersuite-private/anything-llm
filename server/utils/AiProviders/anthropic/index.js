@@ -56,8 +56,10 @@ class AnthropicLLM {
     
     // 2. Fall back to manual API key from environment
     const manualKey = process.env.ANTHROPIC_API_KEY;
-    if (!manualKey) {
-      throw new Error("No Anthropic API key was set.");
+    if (!manualKey || manualKey === "sk-ant-oauth-managed") {
+      throw new Error(
+        "No Anthropic authentication found. Please go to Settings > AI Providers > LLM and either click 'Sign in with Claude' or enter an API key."
+      );
     }
     
     this._apiKey = manualKey;
@@ -121,7 +123,9 @@ class AnthropicLLM {
     // 2. Fall back to manual API key from environment
     const manualKey = process.env.ANTHROPIC_API_KEY;
     if (!manualKey) {
-      throw new Error("No Anthropic API key was set.");
+      throw new Error(
+        "No Anthropic authentication found. Please sign in with Claude or enter an API key in Settings."
+      );
     }
     
     return manualKey;

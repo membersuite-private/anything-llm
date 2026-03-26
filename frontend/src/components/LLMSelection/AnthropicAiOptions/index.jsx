@@ -134,6 +134,11 @@ export default function AnthropicAiOptions({ settings }) {
         )}
       </div>
 
+      {/* Hidden sentinel for form submission when OAuth is active */}
+      {oauthStatus === "connected" && (
+        <input type="hidden" name="AnthropicApiKey" value="sk-ant-oauth-managed" />
+      )}
+
       {/* API Key fallback — collapsed by default when OAuth is connected */}
       {oauthStatus === "connected" ? (
         <div className="mb-2">
