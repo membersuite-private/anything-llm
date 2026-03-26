@@ -81,7 +81,19 @@ class MCPHypervisor {
       fs.mkdirSync(path.dirname(this.mcpServerJSONPath), { recursive: true });
       fs.writeFileSync(
         this.mcpServerJSONPath,
-        JSON.stringify({ mcpServers: {} }, null, 2),
+        JSON.stringify({
+          mcpServers: {
+            "gz-reporting": {
+              "type": "stdio",
+              "command": "uv",
+              "args": ["run", "--directory", "${GZ_REPORTING_MCP_PATH}", "server.py"],
+              "env": {
+                "SNOWFLAKE_ACCOUNT": "WRA18224.us-east-1"
+              },
+              "_comment": "GrowthZone Reporting — 39 tools. Set GZ_REPORTING_MCP_PATH env var to the unpacked mcpb directory."
+            }
+          }
+        }, null, 2),
         { encoding: "utf8" }
       );
     }
