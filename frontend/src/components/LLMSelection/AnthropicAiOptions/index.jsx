@@ -75,7 +75,12 @@ export default function AnthropicAiOptions({ settings }) {
               </span>
             </div>
             <button
-              onClick={handleOAuthLogout}
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleOAuthLogout();
+              }}
               className="text-xs text-red-400 hover:text-red-300 underline"
             >
               Disconnect
@@ -87,7 +92,12 @@ export default function AnthropicAiOptions({ settings }) {
               Sign in with your Claude Teams account — no API key needed.
             </p>
             <button
-              onClick={handleOAuthLogin}
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleOAuthLogin();
+              }}
               disabled={oauthStatus === 'pending'}
               className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-[#D4A574] hover:bg-[#C49464] text-white font-semibold text-sm transition-colors disabled:opacity-50"
             >
