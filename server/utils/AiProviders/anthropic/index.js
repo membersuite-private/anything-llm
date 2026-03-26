@@ -10,22 +10,13 @@ const {
   LLMPerformanceMonitor,
 } = require("../../helpers/chat/LLMPerformanceMonitor");
 const { getAnythingLLMUserAgent } = require("../../../endpoints/utils");
+const { getValidAccessToken } = require("./tokenStorage");
 
 class AnthropicLLM {
   constructor(embedder = null, modelPreference = null) {
-    if (!process.env.ANTHROPIC_API_KEY)
-      throw new Error("No Anthropic API key was set.");
-
     this.className = "AnthropicLLM";
-    // Docs: https://www.npmjs.com/package/@anthropic-ai/sdk
-    const AnthropicAI = require("@anthropic-ai/sdk");
-    const anthropic = new AnthropicAI({
-      apiKey: process.env.ANTHROPIC_API_KEY,
-      defaultHeaders: {
-        "User-Agent": getAnythingLLMUserAgent(),
-      },
-    });
-    this.anthropic = anthropic;
+    this.anthropic = null; // Lazy initialization
+    this._apiKey = null; // Cache the resolved API key
     this.model =
       modelPreference ||
       process.env.ANTHROPIC_MODEL_PREF ||
@@ -47,6 +38,49 @@ class AnthropicLLM {
       this.maxTokens = maxTokens;
       this.log(`Model ${this.model} max tokens: ${this.maxTokens}`);
     });
+  }
+
+  /**
+   * Get API key with OAuth token priority over manual API key
+   * @returns {Promise<string>} The API key to use
+   */
+  async #getApiKey() {
+    if (this._apiKey) return this._apiKey;
+
+    // 1. Check for OAuth token first (from "Sign in with Claude")
+    const oauthToken = await getValidAccessToken();
+    if (oauthToken) {
+      this._apiKey = oauthToken;
+      return oauthToken;
+    }
+    
+    // 2. Fall back to manual API key from environment
+    const manualKey = process.env.ANTHROPIC_API_KEY;
+    if (!manualKey) {
+      throw new Error("No Anthropic API key was set.");
+    }
+    
+    this._apiKey = manualKey;
+    return manualKey;
+  }
+
+  /**
+   * Get or create the Anthropic client with lazy initialization
+   * @returns {Promise<import("@anthropic-ai/sdk").Anthropic>}
+   */
+  async #getClient() {
+    if (this.anthropic) return this.anthropic;
+
+    const apiKey = await this.#getApiKey();
+    const AnthropicAI = require("@anthropic-ai/sdk");
+    this.anthropic = new AnthropicAI({
+      apiKey: apiKey,
+      defaultHeaders: {
+        "User-Agent": getAnythingLLMUserAgent(),
+      },
+    });
+
+    return this.anthropic;
   }
 
   log(text, ...args) {
@@ -76,6 +110,24 @@ class AnthropicLLM {
   }
 
   /**
+   * Get API key with OAuth token priority (static version)
+   * @returns {Promise<string>} The API key to use
+   */
+  static async #getStaticApiKey() {
+    // 1. Check for OAuth token first (from "Sign in with Claude")
+    const oauthToken = await getValidAccessToken();
+    if (oauthToken) return oauthToken;
+    
+    // 2. Fall back to manual API key from environment
+    const manualKey = process.env.ANTHROPIC_API_KEY;
+    if (!manualKey) {
+      throw new Error("No Anthropic API key was set.");
+    }
+    
+    return manualKey;
+  }
+
+  /**
    * Fetches the maximum number of tokens the model should generate in its response.
    * This varies per model but will fallback to 4096 if the model is not found.
    * @param {string} modelName - The name of the model to fetch the max tokens for
@@ -85,10 +137,11 @@ class AnthropicLLM {
     modelName = process.env.ANTHROPIC_MODEL_PREF
   ) {
     try {
+      const apiKey = await AnthropicLLM.#getStaticApiKey();
       const AnthropicAI = require("@anthropic-ai/sdk");
       /** @type {import("@anthropic-ai/sdk").Anthropic} */
       const anthropic = new AnthropicAI({
-        apiKey: process.env.ANTHROPIC_API_KEY,
+        apiKey: apiKey,
       });
       const model = await anthropic.models.retrieve(modelName);
       return Number(model.max_tokens ?? 4096);
@@ -189,9 +242,10 @@ class AnthropicLLM {
   async getChatCompletion(messages = null, { temperature = 0.7 }) {
     await this.assertModelMaxTokens();
     try {
+      const anthropic = await this.#getClient();
       const systemContent = messages[0].content;
       const result = await LLMPerformanceMonitor.measureAsyncFunction(
-        this.anthropic.messages.create({
+        anthropic.messages.create({
           model: this.model,
           max_tokens: this.maxTokens,
           system: this.#buildSystemPrompt(systemContent),
@@ -224,9 +278,10 @@ class AnthropicLLM {
 
   async streamGetChatCompletion(messages = null, { temperature = 0.7 }) {
     await this.assertModelMaxTokens();
+    const anthropic = await this.#getClient();
     const systemContent = messages[0].content;
     const measuredStreamRequest = await LLMPerformanceMonitor.measureStream({
-      func: this.anthropic.messages.stream({
+      func: anthropic.messages.stream({
         model: this.model,
         max_tokens: this.maxTokens,
         system: this.#buildSystemPrompt(systemContent),
