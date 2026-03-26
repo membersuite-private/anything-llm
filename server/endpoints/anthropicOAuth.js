@@ -29,11 +29,11 @@ function anthropicOAuthEndpoints(app) {
 
       const { authorizeUrl } = await startOAuthFlow();
 
-      // Start waiting for callback in background
-      waitForOAuthCallback(300000) // 5 min timeout
+      // Start waiting for callback in background (2 min timeout — releases port quickly)
+      waitForOAuthCallback(120000)
         .then((tokens) => {
           saveTokens(tokens);
-          console.log("Anthropic OAuth: tokens received and saved.");
+          console.log("Anthropic OAuth: tokens received and saved successfully.");
         })
         .catch((err) => {
           console.error("Anthropic OAuth callback error:", err.message);

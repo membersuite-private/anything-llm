@@ -243,26 +243,33 @@ async function startOAuthFlow() {
 /**
  * Wait for the OAuth callback and exchange for tokens.
  * Call after startOAuthFlow() — blocks until user completes auth or timeout.
+ * The callback server is closed immediately after — never holds the port.
  */
-async function waitForOAuthCallback(timeoutMs = 300000) {
+async function waitForOAuthCallback(timeoutMs = 120000) {
   if (!activeSession) {
     throw new Error("No active OAuth session. Call startOAuthFlow() first.");
   }
 
   const { verifier, callbackServer } = activeSession;
+  let timer;
 
   try {
-    // Wait for callback with timeout
+    // Wait for callback with timeout — timer is cleared on completion
     const result = await Promise.race([
       callbackServer.waitForCode(),
-      new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("OAuth timeout — user did not complete authentication")), timeoutMs)
-      ),
+      new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error("OAuth timeout — user did not complete authentication")), timeoutMs);
+      }),
     ]);
+
+    clearTimeout(timer);
 
     if (!result || !result.code) {
       throw new Error("No authorization code received.");
     }
+
+    // Close the callback server IMMEDIATELY — don't hold the port
+    callbackServer.server.close();
 
     // Exchange code for tokens
     const tokens = await exchangeAuthorizationCode(
@@ -274,8 +281,9 @@ async function waitForOAuthCallback(timeoutMs = 300000) {
 
     return tokens;
   } finally {
-    // Always clean up
-    callbackServer.server.close();
+    clearTimeout(timer);
+    // Always clean up — close server and release port
+    try { callbackServer.server.close(); } catch {}
     activeSession = null;
   }
 }
