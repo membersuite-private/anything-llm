@@ -8,9 +8,102 @@ export default function AnthropicAiOptions({ settings }) {
   const [anthropicApiKey, setAnthropicApiKey] = useState(
     settings?.AnthropicApiKey
   );
+  const [oauthStatus, setOauthStatus] = useState('checking'); // 'checking' | 'disconnected' | 'pending' | 'connected'
+
+  // Check OAuth status on mount
+  useEffect(() => {
+    async function checkOAuth() {
+      try {
+        const res = await fetch('/api/anthropic-oauth/status');
+        const data = await res.json();
+        setOauthStatus(data.authenticated ? 'connected' : 'disconnected');
+      } catch {
+        setOauthStatus('disconnected');
+      }
+    }
+    checkOAuth();
+  }, []);
+
+  // Poll while pending
+  useEffect(() => {
+    if (oauthStatus !== 'pending') return;
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch('/api/anthropic-oauth/status');
+        const data = await res.json();
+        if (data.authenticated) {
+          setOauthStatus('connected');
+          clearInterval(interval);
+        }
+      } catch {}
+    }, 2000);
+    return () => clearInterval(interval);
+  }, [oauthStatus]);
+
+  async function handleOAuthLogin() {
+    try {
+      const res = await fetch('/api/anthropic-oauth/start');
+      const data = await res.json();
+      if (data.success && data.authorizeUrl) {
+        window.open(data.authorizeUrl, '_blank');
+        setOauthStatus('pending');
+      }
+    } catch (err) {
+      console.error('OAuth start failed:', err);
+    }
+  }
+
+  async function handleOAuthLogout() {
+    try {
+      await fetch('/api/anthropic-oauth/logout', { method: 'POST' });
+      setOauthStatus('disconnected');
+    } catch (err) {
+      console.error('OAuth logout failed:', err);
+    }
+  }
 
   return (
     <div className="w-full flex flex-col">
+      {/* OAuth Sign In */}
+      <div className="w-full mb-4 p-4 rounded-lg bg-theme-settings-input-bg border border-theme-sidebar-border">
+        {oauthStatus === 'connected' ? (
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-green-400"></div>
+              <span className="text-green-400 text-sm font-semibold">
+                Connected via Claude Teams
+              </span>
+            </div>
+            <button
+              onClick={handleOAuthLogout}
+              className="text-xs text-red-400 hover:text-red-300 underline"
+            >
+              Disconnect
+            </button>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2">
+            <p className="text-theme-text-secondary text-xs">
+              Sign in with your Claude Teams account — no API key needed.
+            </p>
+            <button
+              onClick={handleOAuthLogin}
+              disabled={oauthStatus === 'pending'}
+              className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-[#D4A574] hover:bg-[#C49464] text-white font-semibold text-sm transition-colors disabled:opacity-50"
+            >
+              {oauthStatus === 'pending' ? 'Waiting for authentication...' : 'Sign in with Claude'}
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Divider */}
+      <div className="flex items-center gap-3 mb-4">
+        <div className="flex-1 h-px bg-theme-sidebar-border"></div>
+        <span className="text-theme-text-secondary text-xs">or use an API key</span>
+        <div className="flex-1 h-px bg-theme-sidebar-border"></div>
+      </div>
+
       <div className="w-full flex items-center gap-[36px] mt-1.5">
         <div className="flex flex-col w-60">
           <label className="text-white text-sm font-semibold block mb-3">
@@ -22,7 +115,7 @@ export default function AnthropicAiOptions({ settings }) {
             className="border-none bg-theme-settings-input-bg text-white placeholder:text-theme-settings-input-placeholder text-sm rounded-lg focus:outline-primary-button active:outline-primary-button outline-none block w-full p-2.5"
             placeholder="Anthropic Claude-2 API Key"
             defaultValue={settings?.AnthropicApiKey ? "*".repeat(20) : ""}
-            required={true}
+            required={oauthStatus !== 'connected'}
             autoComplete="off"
             spellCheck={false}
             onChange={(e) => setInputValue(e.target.value)}
