@@ -184,10 +184,35 @@ async function refreshAccessToken(refreshToken) {
 }
 
 /**
+ * Check if a port is available.
+ */
+function isPortAvailable(port) {
+  const net = require("net");
+  return new Promise((resolve) => {
+    const server = net.createServer();
+    server.once("error", () => resolve(false));
+    server.once("listening", () => {
+      server.close();
+      resolve(true);
+    });
+    server.listen(port, CALLBACK_HOST);
+  });
+}
+
+/**
  * Start the OAuth login flow.
  * Returns the authorize URL for the browser and the PKCE verifier for later exchange.
  */
 async function startOAuthFlow() {
+  // Check if callback port is available (Pi may be using it)
+  const portFree = await isPortAvailable(CALLBACK_PORT);
+  if (!portFree) {
+    throw new Error(
+      `OAuth callback port ${CALLBACK_PORT} is already in use (likely by Pi or another Claude OAuth session). ` +
+      `Please close Pi or any other application using port ${CALLBACK_PORT} and try again.`
+    );
+  }
+
   const { verifier, challenge } = generatePKCE();
   const callbackServer = await startCallbackServer(verifier);
 
