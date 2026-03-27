@@ -1,4 +1,4 @@
-const { loadSummarizationChain } = require("langchain/chains");
+const { loadSummarizationChain } = require("@langchain/classic/chains");
 const { PromptTemplate } = require("@langchain/core/prompts");
 const { RecursiveCharacterTextSplitter } = require("@langchain/textsplitters");
 const Provider = require("../providers/ai-provider");
