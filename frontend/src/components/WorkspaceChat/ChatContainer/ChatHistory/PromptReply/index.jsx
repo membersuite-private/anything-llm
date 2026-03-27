@@ -97,13 +97,14 @@ function RenderAssistantChatContent({ message, messageId }) {
         />
       )}
       {(() => {
-        const parts = parseArtifacts(contentRef.current);
+        const textToRender = message.replace(THOUGHT_REGEX_COMPLETE, "");
+        const parts = parseArtifacts(textToRender);
         if (parts.length === 1 && parts[0].type === "text") {
           return (
             <span
               className="break-words"
               dangerouslySetInnerHTML={{
-                __html: DOMPurify.sanitize(renderMarkdown(contentRef.current)),
+                __html: DOMPurify.sanitize(renderMarkdown(textToRender)),
               }}
             />
           );
@@ -117,7 +118,7 @@ function RenderAssistantChatContent({ message, messageId }) {
               className="break-words"
               dangerouslySetInnerHTML={{
                 __html: DOMPurify.sanitize(renderMarkdown(part.content)),
-              }}
+              }}}
             />
           )
         );
