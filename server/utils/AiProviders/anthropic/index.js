@@ -67,17 +67,19 @@ class AnthropicLLM {
    * @returns {Promise<{key: string, isOAuth: boolean}>}
    */
   async #resolveAuth() {
-    if (this._resolvedKey) return this._resolvedKey;
-
-    // 1. Check for OAuth token first (from "Sign in with Claude")
+    // Always check for fresh OAuth token (file read is cheap)
     const oauthToken = await getValidAccessToken();
     if (oauthToken) {
+      // If token changed (refresh happened), invalidate cached client
+      if (this._resolvedKey?.key !== oauthToken) {
+        this.anthropic = null;
+      }
       this._resolvedKey = { key: oauthToken, isOAuth: true };
       this.isOAuth = true;
       return this._resolvedKey;
     }
 
-    // 2. Fall back to manual API key from environment
+    // Fall back to manual API key from environment
     const manualKey = process.env.ANTHROPIC_API_KEY;
     if (!manualKey || manualKey === "sk-ant-oauth-managed") {
       throw new Error(
