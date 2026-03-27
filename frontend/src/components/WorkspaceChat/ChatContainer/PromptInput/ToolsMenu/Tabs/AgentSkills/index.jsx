@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import paths from "@/utils/paths";
 import Admin from "@/models/admin";
+import System from "@/models/system";
 import AgentPlugins from "@/models/experimental/agentPlugins";
 import AgentFlows from "@/models/agentFlows";
 import MCPServers from "@/models/mcpServers";
@@ -24,7 +25,11 @@ export default function AgentSkillsTab({
   const { showAgentCommand = true } = workspace ?? {};
   const agentSessionActive = useIsAgentSessionActive();
   const defaultSkills = getDefaultSkills(t);
-  const configurableSkills = getConfigurableSkills(t);
+  const [fileSystemAgentAvailable, setFileSystemAgentAvailable] =
+    useState(false);
+  const configurableSkills = getConfigurableSkills(t, {
+    fileSystemAgentAvailable,
+  });
   const [disabledDefaults, setDisabledDefaults] = useState([]);
   const [enabledConfigurable, setEnabledConfigurable] = useState([]);
   const [importedSkills, setImportedSkills] = useState([]);
@@ -39,7 +44,7 @@ export default function AgentSkillsTab({
 
   async function fetchSkillSettings() {
     try {
-      const [prefs, flowsRes, mcpRes] = await Promise.all([
+      const [prefs, flowsRes, mcpRes, fsAgentAvailable] = await Promise.all([
         Admin.systemPreferencesByFields([
           "disabled_agent_skills",
           "default_agent_skills",
@@ -47,6 +52,7 @@ export default function AgentSkillsTab({
         ]),
         AgentFlows.listFlows(),
         MCPServers.listServers(),
+        System.isFileSystemAgentAvailable(),
       ]);
 
       if (prefs?.settings) {
@@ -56,6 +62,7 @@ export default function AgentSkillsTab({
       }
       if (flowsRes?.flows) setFlows(flowsRes.flows);
       if (mcpRes?.servers) setMcpServers(mcpRes.servers.filter(s => s.running));
+      setFileSystemAgentAvailable(fsAgentAvailable);
     } catch (e) {
       console.error(e);
     } finally {
