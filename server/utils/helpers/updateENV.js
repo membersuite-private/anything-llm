@@ -1281,6 +1281,20 @@ async function logChangesToEventLog(newValues = {}, userId = null) {
 function dumpENV() {
   const fs = require("fs");
   const path = require("path");
+  const crypto = require("crypto");
+
+  // Replace weak default secrets with crypto-random values on first run
+  const weakDefaults = {
+    JWT_SECRET: "my-random-string-for-seeding",
+    SIG_KEY: "passphrase",
+    SIG_SALT: "salt",
+  };
+
+  for (const [key, weakValue] of Object.entries(weakDefaults)) {
+    if (process.env[key] === weakValue || !process.env[key]) {
+      process.env[key] = crypto.randomBytes(32).toString("hex");
+    }
+  }
 
   const frozenEnvs = {};
   const protectedKeys = [

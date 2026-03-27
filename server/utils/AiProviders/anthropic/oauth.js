@@ -14,11 +14,8 @@
 const http = require("http");
 const { generatePKCE } = require("./pkce");
 
-// Constants from pi-mono (decoded from base64)
-const CLIENT_ID = Buffer.from(
-  "OWQxYzI1MGEtZTYxYi00NGQ5LTg4ZWQtNTk0NGQxOTYyZjVl",
-  "base64"
-).toString();
+// Public OAuth client ID — this is NOT a secret (it's sent in URLs)
+const CLIENT_ID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e";
 const AUTHORIZE_URL = "https://claude.ai/oauth/authorize";
 const TOKEN_URL = "https://platform.claude.com/v1/oauth/token";
 const CALLBACK_HOST = "127.0.0.1";
@@ -137,9 +134,8 @@ async function exchangeAuthorizationCode(code, state, verifier, redirectUri) {
 
   const responseBody = await response.text();
   if (!response.ok) {
-    throw new Error(
-      `Token exchange failed: status=${response.status} body=${responseBody}`
-    );
+    console.error('[OAuth] Token exchange error body (not exposed to client):', responseBody);
+    throw new Error(`Token exchange failed (HTTP ${response.status}). Check server logs for details.`);
   }
 
   const tokenData = JSON.parse(responseBody);
@@ -170,9 +166,8 @@ async function refreshAccessToken(refreshToken) {
 
   const responseBody = await response.text();
   if (!response.ok) {
-    throw new Error(
-      `Token refresh failed: status=${response.status} body=${responseBody}`
-    );
+    console.error('[OAuth] Token refresh error body (not exposed to client):', responseBody);
+    throw new Error(`Token refresh failed (HTTP ${response.status}). Check server logs for details.`);
   }
 
   const data = JSON.parse(responseBody);
