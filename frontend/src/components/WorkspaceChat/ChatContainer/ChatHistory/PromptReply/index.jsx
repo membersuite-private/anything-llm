@@ -3,6 +3,7 @@ import { memo, useRef, useEffect } from "react";
 import { Warning } from "@phosphor-icons/react";
 import renderMarkdown from "@/utils/chat/markdown";
 import DOMPurify from "@/utils/chat/purify";
+import ArtifactFrame, { parseArtifacts } from "../Artifacts/index.jsx";
 import Citations from "../Citation";
 import {
   THOUGHT_REGEX_CLOSE,
@@ -95,12 +96,32 @@ function RenderAssistantChatContent({ message, messageId }) {
           messageId={messageId}
         />
       )}
-      <span
-        className="break-words"
-        dangerouslySetInnerHTML={{
-          __html: DOMPurify.sanitize(renderMarkdown(contentRef.current)),
-        }}
-      />
+      {(() => {
+        const parts = parseArtifacts(contentRef.current);
+        if (parts.length === 1 && parts[0].type === "text") {
+          return (
+            <span
+              className="break-words"
+              dangerouslySetInnerHTML={{
+                __html: DOMPurify.sanitize(renderMarkdown(contentRef.current)),
+              }}
+            />
+          );
+        }
+        return parts.map((part, i) =>
+          part.type === "artifact" ? (
+            <ArtifactFrame key={i} content={part.content} />
+          ) : (
+            <span
+              key={i}
+              className="break-words"
+              dangerouslySetInnerHTML={{
+                __html: DOMPurify.sanitize(renderMarkdown(part.content)),
+              }}
+            />
+          )
+        );
+      })()}
     </div>
   );
 }
