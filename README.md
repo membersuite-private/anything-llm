@@ -13,6 +13,16 @@ GrowthZone Intelligence is a desktop AI client that connects to Claude (Anthropi
 - **Desktop App** — Native Electron wrapper that bundles the server and UI into a single application.
 - **Multi-user Workspaces** — Inherited from AnythingLLM: workspaces, document embedding, conversation history.
 
+## What's New (v1.0.1–v1.0.3)
+
+- **Artifact rendering** — SVG/HTML dashboards from Claude render inline in sandboxed iframes
+- **Security hardening** — 53 findings addressed, 0 critical CVEs remaining
+- **Content width toggle** — Compact / Auto / Wide / Full viewport modes
+- **Stop button for agent sessions** — visible during tool execution, auto-hides on completion
+- **50 tool call limit** with 10-minute WebSocket timeout for complex analytical chains
+
+See [CHANGELOG.md](CHANGELOG.md) for full release history.
+
 ## Quick Start
 
 ### Prerequisites
