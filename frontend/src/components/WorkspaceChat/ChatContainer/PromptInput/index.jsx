@@ -389,7 +389,7 @@ export default function PromptInput({
                 </div>
                 <div className="flex gap-x-2 items-center">
                   <SpeechToText sendCommand={sendCommand} />
-                  {isStreaming ? (
+                  {(isStreaming || agentSessionActive) ? (
                     <StopGenerationButton />
                   ) : (
                     <SendPromptButton

@@ -1,5 +1,4 @@
 import { useState, useEffect, useContext, useRef } from "react";
-import { flushSync } from "react-dom";
 import ChatHistory from "./ChatHistory";
 import { CLEAR_ATTACHMENTS_EVENT, DndUploaderContext } from "./DnDWrapper";
 import PromptInput, {
@@ -314,13 +313,10 @@ function ChatContainerInner({ workspace, knownHistory = [] }) {
         });
 
         socket.addEventListener("close", (_event) => {
-          flushSync(() => {
-            setAgentSessionActive(false);
-            setLoadingResponse(false);
-            setWebsocket(null);
-            setSocketId(null);
-          });
+          setAgentSessionActive(false);
           window.dispatchEvent(new CustomEvent(AGENT_SESSION_END));
+          setWebsocket(null);
+          setSocketId(null);
           setChatHistory((prev) => [
             ...prev.filter((msg) => !!msg.content),
             {
@@ -338,7 +334,6 @@ function ChatContainerInner({ workspace, knownHistory = [] }) {
         });
         setWebsocket(socket);
         setAgentSessionActive(true);
-        setLoadingResponse(true);
         window.dispatchEvent(new CustomEvent(AGENT_SESSION_START));
         window.dispatchEvent(new CustomEvent(CLEAR_ATTACHMENTS_EVENT));
       } catch (e) {
