@@ -18,6 +18,8 @@ function relayToSocket(message) {
 function agentWebsocket(app) {
   if (!app) return;
 
+  // TODO: Security Gap - Add per-IP WebSocket connection limits to prevent DoS attacks
+  // Recommended: Track connections by IP and reject new connections if per-IP limit (e.g., 10) exceeded
   app.ws("/agent-invocation/:uuid", async function (socket, request) {
     try {
       const agentHandler = await new AgentHandler({

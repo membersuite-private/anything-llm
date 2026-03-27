@@ -36,9 +36,11 @@ const { webPushEndpoints } = require("./endpoints/webPush");
 const { telegramEndpoints } = require("./endpoints/telegram");
 const { anthropicOAuthEndpoints } = require("./endpoints/anthropicOAuth");
 const { httpLogger } = require("./middleware/httpLogger");
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 const app = express();
 const apiRouter = express.Router();
-const FILE_LIMIT = "3GB";
+const FILE_LIMIT = "10mb";
 
 // Only log HTTP requests in development mode and if the ENABLE_HTTP_LOGGER environment variable is set to true
 if (
@@ -51,7 +53,23 @@ if (
     })
   );
 }
-app.use(cors({ origin: true }));
+app.use(helmet({
+  contentSecurityPolicy: false, // We serve a SPA, CSP needs custom config
+  crossOriginEmbedderPolicy: false, // Allow embedded resources
+}));
+app.use(rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 300, // limit each IP to 300 requests per window
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again later.' },
+}));
+app.use(cors({
+  origin: process.env.CORS_ORIGINS
+    ? process.env.CORS_ORIGINS.split(',')
+    : ['http://localhost:3001', 'http://127.0.0.1:3001', 'tauri://localhost'],
+  credentials: true,
+}));
 app.use(bodyParser.text({ limit: FILE_LIMIT }));
 app.use(bodyParser.json({ limit: FILE_LIMIT }));
 app.use(

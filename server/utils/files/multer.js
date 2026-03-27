@@ -90,7 +90,10 @@ const pfpUploadStorage = multer.diskStorage({
  * @param {NextFunction} next
  */
 function handleFileUpload(request, response, next) {
-  const upload = multer({ storage: fileUploadStorage }).single("file");
+  const upload = multer({ 
+    storage: fileUploadStorage,
+    limits: { fileSize: 100 * 1024 * 1024 } // 100MB
+  }).single("file");
   upload(request, response, function (err) {
     if (err) {
       response
@@ -114,7 +117,10 @@ function handleFileUpload(request, response, next) {
  * @param {NextFunction} next
  */
 function handleAPIFileUpload(request, response, next) {
-  const upload = multer({ storage: fileAPIUploadStorage }).single("file");
+  const upload = multer({ 
+    storage: fileAPIUploadStorage,
+    limits: { fileSize: 100 * 1024 * 1024 } // 100MB
+  }).single("file");
   upload(request, response, function (err) {
     if (err) {
       response
@@ -134,7 +140,10 @@ function handleAPIFileUpload(request, response, next) {
  * Handle logo asset uploads
  */
 function handleAssetUpload(request, response, next) {
-  const upload = multer({ storage: assetUploadStorage }).single("logo");
+  const upload = multer({ 
+    storage: assetUploadStorage,
+    limits: { fileSize: 100 * 1024 * 1024 } // 100MB
+  }).single("logo");
   upload(request, response, function (err) {
     if (err) {
       response
@@ -154,7 +163,10 @@ function handleAssetUpload(request, response, next) {
  * Handle PFP file upload as logos
  */
 function handlePfpUpload(request, response, next) {
-  const upload = multer({ storage: pfpUploadStorage }).single("file");
+  const upload = multer({ 
+    storage: pfpUploadStorage,
+    limits: { fileSize: 100 * 1024 * 1024 } // 100MB
+  }).single("file");
   upload(request, response, function (err) {
     if (err) {
       response
