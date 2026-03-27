@@ -16,8 +16,25 @@ function loadTokens() {
   try {
     const tokenPath = getTokenPath();
     if (!fs.existsSync(tokenPath)) return null;
-    const data = JSON.parse(fs.readFileSync(tokenPath, "utf-8"));
-    return data;
+    const raw = fs.readFileSync(tokenPath, "utf-8");
+
+    // Try to decrypt first (encrypted format)
+    try {
+      const EncryptionManager = require("../../EncryptionManager");
+      const encMgr = new EncryptionManager();
+      const decrypted = encMgr.decrypt(raw);
+      return JSON.parse(decrypted);
+    } catch {
+      // Might be legacy plaintext — try direct JSON parse
+      try {
+        const data = JSON.parse(raw);
+        // Migrate: re-save as encrypted
+        saveTokens(data);
+        return data;
+      } catch {
+        return null;
+      }
+    }
   } catch {
     return null;
   }
@@ -27,8 +44,15 @@ function saveTokens(tokens) {
   const tokenPath = getTokenPath();
   const dir = path.dirname(tokenPath);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(tokenPath, JSON.stringify(tokens, null, 2), "utf-8");
-  // Restrict permissions
+  try {
+    const EncryptionManager = require("../../EncryptionManager");
+    const encMgr = new EncryptionManager();
+    const encrypted = encMgr.encrypt(JSON.stringify(tokens));
+    fs.writeFileSync(tokenPath, encrypted, "utf-8");
+  } catch {
+    // Fallback to plaintext if encryption not available
+    fs.writeFileSync(tokenPath, JSON.stringify(tokens, null, 2), "utf-8");
+  }
   try { fs.chmodSync(tokenPath, 0o600); } catch {}
 }
 
