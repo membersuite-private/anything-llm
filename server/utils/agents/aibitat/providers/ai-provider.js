@@ -153,13 +153,37 @@ class Provider {
         });
       case "anthropic": {
         let anthropicKey = process.env.ANTHROPIC_API_KEY;
-        if (!anthropicKey || anthropicKey === "sk-ant-oauth-managed") {
+        const isOAuthSentinel = !anthropicKey || anthropicKey === "sk-ant-oauth-managed";
+        let oauthToken = null;
+
+        if (isOAuthSentinel) {
           try {
             const { getValidAccessToken } = require("../../../AiProviders/anthropic/tokenStorage");
-            anthropicKey = await getValidAccessToken();
+            oauthToken = await getValidAccessToken();
           } catch {}
         }
-        if (!anthropicKey) throw new Error("No Anthropic authentication. Sign in via Settings > AI Providers.");
+
+        if (!anthropicKey && !oauthToken) {
+          throw new Error("No Anthropic authentication. Sign in via Settings > AI Providers.");
+        }
+
+        // OAuth tokens need authToken + beta headers via clientOptions
+        if (oauthToken) {
+          return new ChatAnthropic({
+            anthropicApiKey: "sk-placeholder",
+            clientOptions: {
+              apiKey: null,
+              authToken: oauthToken,
+              defaultHeaders: {
+                "anthropic-beta": "claude-code-20250219,oauth-2025-04-20",
+                "user-agent": "claude-cli/2.1.75",
+                "x-app": "cli",
+              },
+            },
+            ...config,
+          });
+        }
+
         return new ChatAnthropic({
           apiKey: anthropicKey,
           ...config,
