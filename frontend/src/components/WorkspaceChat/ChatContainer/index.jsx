@@ -300,7 +300,6 @@ function ChatContainerInner({ workspace, knownHistory = [] }) {
         });
 
         socket.addEventListener("message", (event) => {
-          setLoadingResponse(true);
           try {
             handleSocketResponse(socket, event, setChatHistory);
           } catch {
@@ -309,7 +308,6 @@ function ChatContainerInner({ workspace, knownHistory = [] }) {
             window.dispatchEvent(new CustomEvent(AGENT_SESSION_END));
             socket.close();
           }
-          setLoadingResponse(false);
         });
 
         socket.addEventListener("close", (_event) => {
@@ -335,6 +333,7 @@ function ChatContainerInner({ workspace, knownHistory = [] }) {
         });
         setWebsocket(socket);
         setAgentSessionActive(true);
+        setLoadingResponse(true);
         window.dispatchEvent(new CustomEvent(AGENT_SESSION_START));
         window.dispatchEvent(new CustomEvent(CLEAR_ATTACHMENTS_EVENT));
       } catch (e) {
