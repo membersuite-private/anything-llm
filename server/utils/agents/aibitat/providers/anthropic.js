@@ -8,28 +8,60 @@ const { getAnythingLLMUserAgent } = require("../../../../endpoints/utils");
 
 /**
  * The agent provider for the Anthropic API.
- * By default, the model is set to 'claude-2'.
+ * Supports both API key and OAuth token authentication.
  */
 class AnthropicProvider extends Provider {
   model;
   maxTokens = null;
 
   constructor(config = {}) {
-    const {
-      options = {
-        apiKey: process.env.ANTHROPIC_API_KEY,
+    const model = config.model || "claude-sonnet-4-6";
+
+    // Resolve authentication: OAuth token takes priority over API key
+    let clientOptions;
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    const isOAuthSentinel = !apiKey || apiKey === "sk-ant-oauth-managed";
+
+    if (isOAuthSentinel) {
+      // OAuth path — load token synchronously for constructor
+      // (token was already refreshed by the main LLM provider)
+      let oauthToken = null;
+      try {
+        const { loadTokens } = require("../../../AiProviders/anthropic/tokenStorage");
+        const tokens = loadTokens();
+        if (tokens?.accessToken && (!tokens.expiresAt || Date.now() < tokens.expiresAt)) {
+          oauthToken = tokens.accessToken;
+        }
+      } catch {}
+
+      if (!oauthToken) {
+        throw new Error("No Anthropic authentication. Sign in via Settings > AI Providers.");
+      }
+
+      clientOptions = {
+        apiKey: null,
+        authToken: oauthToken,
+        maxRetries: 3,
+        defaultHeaders: {
+          "anthropic-beta": "claude-code-20250219,oauth-2025-04-20",
+          "user-agent": "claude-cli/2.1.75",
+          "x-app": "cli",
+        },
+      };
+    } else {
+      clientOptions = {
+        apiKey,
         maxRetries: 3,
         defaultHeaders: {
           "User-Agent": getAnythingLLMUserAgent(),
         },
-      },
-      model = "claude-3-5-sonnet-20240620",
-    } = config;
+      };
+    }
 
-    const client = new Anthropic(options);
-
+    const client = new Anthropic(clientOptions);
     super(client);
     this.model = model;
+    this._isOAuth = isOAuthSentinel;
   }
 
   /**
@@ -83,11 +115,26 @@ class AnthropicProvider extends Provider {
   }
 
   /**
-   * Builds system parameter with cache control if applicable
+   * Builds system parameter with OAuth identity and cache control if applicable.
    * @param {string} systemContent - The system prompt content
    * @returns {string|array} System parameter for API call
    */
   #buildSystemPrompt(systemContent) {
+    // OAuth requires Claude Code identity as first system block
+    if (this._isOAuth) {
+      const blocks = [
+        { type: "text", text: "You are Claude Code, Anthropic's official CLI for Claude." },
+      ];
+      if (systemContent) {
+        blocks.push({
+          type: "text",
+          text: systemContent,
+          ...(this.cacheControl ? { cache_control: this.cacheControl } : {}),
+        });
+      }
+      return blocks;
+    }
+
     if (!systemContent || !this.cacheControl) return systemContent;
     return [
       {
@@ -257,7 +304,7 @@ class AnthropicProvider extends Provider {
             ? { tools: this.#formatFunctions(functions) }
             : {}),
         },
-        { headers: { "anthropic-beta": "tools-2024-04-04" } } // Required to we can use tools.
+        { headers: { "anthropic-beta": this._isOAuth ? "claude-code-20250219,oauth-2025-04-20,tools-2024-04-04" : "tools-2024-04-04" } }
       );
 
       const result = {
@@ -404,7 +451,7 @@ class AnthropicProvider extends Provider {
             ? { tools: this.#formatFunctions(functions) }
             : {}),
         },
-        { headers: { "anthropic-beta": "tools-2024-04-04" } } // Required to we can use tools.
+        { headers: { "anthropic-beta": this._isOAuth ? "claude-code-20250219,oauth-2025-04-20,tools-2024-04-04" : "tools-2024-04-04" } }
       );
 
       // Record usage from response (Anthropic uses input_tokens/output_tokens)

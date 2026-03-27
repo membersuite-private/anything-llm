@@ -143,7 +143,7 @@ class Provider {
    * @param {LangChainModelConfig} config - Config to be used to override default connection object.
    * @returns
    */
-  static LangChainChatModel(provider = "openai", config = {}) {
+  static async LangChainChatModel(provider = "openai", config = {}) {
     switch (provider) {
       // Cloud models
       case "openai":
@@ -151,11 +151,44 @@ class Provider {
           apiKey: process.env.OPEN_AI_KEY,
           ...config,
         });
-      case "anthropic":
+      case "anthropic": {
+        let anthropicKey = process.env.ANTHROPIC_API_KEY;
+        const isOAuthSentinel = !anthropicKey || anthropicKey === "sk-ant-oauth-managed";
+        let oauthToken = null;
+
+        if (isOAuthSentinel) {
+          try {
+            const { getValidAccessToken } = require("../../../AiProviders/anthropic/tokenStorage");
+            oauthToken = await getValidAccessToken();
+          } catch {}
+        }
+
+        if (!anthropicKey && !oauthToken) {
+          throw new Error("No Anthropic authentication. Sign in via Settings > AI Providers.");
+        }
+
+        // OAuth tokens need authToken + beta headers via clientOptions
+        if (oauthToken) {
+          return new ChatAnthropic({
+            anthropicApiKey: "sk-placeholder",
+            clientOptions: {
+              apiKey: null,
+              authToken: oauthToken,
+              defaultHeaders: {
+                "anthropic-beta": "claude-code-20250219,oauth-2025-04-20",
+                "user-agent": "claude-cli/2.1.75",
+                "x-app": "cli",
+              },
+            },
+            ...config,
+          });
+        }
+
         return new ChatAnthropic({
-          apiKey: process.env.ANTHROPIC_API_KEY,
+          apiKey: anthropicKey,
           ...config,
         });
+      }
       case "groq":
         return new ChatOpenAI({
           configuration: {

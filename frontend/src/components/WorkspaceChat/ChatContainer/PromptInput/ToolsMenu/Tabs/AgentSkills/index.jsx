@@ -5,13 +5,14 @@ import paths from "@/utils/paths";
 import Admin from "@/models/admin";
 import AgentPlugins from "@/models/experimental/agentPlugins";
 import AgentFlows from "@/models/agentFlows";
+import MCPServers from "@/models/mcpServers";
 import {
   getDefaultSkills,
   getConfigurableSkills,
 } from "@/pages/Admin/Agents/skills";
 import useToolsMenuItems from "../../useToolsMenuItems";
 import SkillRow from "./SkillRow";
-import { Wrench } from "@phosphor-icons/react";
+import { Wrench, Plugs } from "@phosphor-icons/react";
 import { useIsAgentSessionActive } from "@/utils/chat/agent";
 
 export default function AgentSkillsTab({
@@ -28,6 +29,7 @@ export default function AgentSkillsTab({
   const [enabledConfigurable, setEnabledConfigurable] = useState([]);
   const [importedSkills, setImportedSkills] = useState([]);
   const [flows, setFlows] = useState([]);
+  const [mcpServers, setMcpServers] = useState([]);
   const [loading, setLoading] = useState(true);
   const showAgentCmdActivationAlert = showAgentCommand && !agentSessionActive;
 
@@ -37,13 +39,14 @@ export default function AgentSkillsTab({
 
   async function fetchSkillSettings() {
     try {
-      const [prefs, flowsRes] = await Promise.all([
+      const [prefs, flowsRes, mcpRes] = await Promise.all([
         Admin.systemPreferencesByFields([
           "disabled_agent_skills",
           "default_agent_skills",
           "imported_agent_skills",
         ]),
         AgentFlows.listFlows(),
+        MCPServers.listServers(),
       ]);
 
       if (prefs?.settings) {
@@ -52,6 +55,7 @@ export default function AgentSkillsTab({
         setImportedSkills(prefs.settings.imported_agent_skills ?? []);
       }
       if (flowsRes?.flows) setFlows(flowsRes.flows);
+      if (mcpRes?.servers) setMcpServers(mcpRes.servers.filter(s => s.running));
     } catch (e) {
       console.error(e);
     } finally {
@@ -165,6 +169,32 @@ export default function AgentSkillsTab({
           disabled={agentSessionActive}
         />
       ))}
+      {mcpServers.length > 0 && (
+        <>
+          <div className="flex items-center gap-1.5 px-2 pt-2 pb-1">
+            <Plugs size={12} className="text-theme-text-secondary" />
+            <span className="text-[10px] font-semibold uppercase text-theme-text-secondary tracking-wide">
+              MCP Tools
+            </span>
+          </div>
+          {mcpServers.map((server) => (
+            <div
+              key={server.name}
+              className="flex items-center justify-between px-2 py-1 rounded text-xs"
+            >
+              <div className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-green-400" />
+                <span className="text-theme-text-primary font-medium">
+                  {server.name}
+                </span>
+              </div>
+              <span className="text-theme-text-secondary text-[10px]">
+                {server.tools?.length ?? 0} tools
+              </span>
+            </div>
+          ))}
+        </>
+      )}
       <Link to={paths.settings.agentSkills()}>
         <button className="flex items-center gap-1.5 px-2 h-6 rounded cursor-pointer hover:bg-zinc-700/50 light:hover:bg-slate-100 text-theme-text-primary">
           <Wrench size={12} className="text-theme-text-primary" />

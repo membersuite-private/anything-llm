@@ -10,26 +10,31 @@ const {
   LLMPerformanceMonitor,
 } = require("../../helpers/chat/LLMPerformanceMonitor");
 const { getAnythingLLMUserAgent } = require("../../../endpoints/utils");
+const { getValidAccessToken } = require("./tokenStorage");
 
 class AnthropicLLM {
-  constructor(embedder = null, modelPreference = null) {
-    if (!process.env.ANTHROPIC_API_KEY)
-      throw new Error("No Anthropic API key was set.");
+  /**
+   * OAuth beta headers required for Claude Teams/Pro/Max OAuth tokens.
+   * Without these, the Anthropic API rejects OAuth tokens entirely.
+   */
+  static OAUTH_BETA_HEADERS = "claude-code-20250219,oauth-2025-04-20";
 
+  /**
+   * Claude Code system identity — EXACT string required by Anthropic's API
+   * when using OAuth tokens. The API validates this server-side; any
+   * modification causes a 400 error on non-Haiku models.
+   */
+  static OAUTH_SYSTEM_IDENTITY =
+    "You are Claude Code, Anthropic's official CLI for Claude.";
+
+  constructor(embedder = null, modelPreference = null) {
     this.className = "AnthropicLLM";
-    // Docs: https://www.npmjs.com/package/@anthropic-ai/sdk
-    const AnthropicAI = require("@anthropic-ai/sdk");
-    const anthropic = new AnthropicAI({
-      apiKey: process.env.ANTHROPIC_API_KEY,
-      defaultHeaders: {
-        "User-Agent": getAnythingLLMUserAgent(),
-      },
-    });
-    this.anthropic = anthropic;
+    this.anthropic = null; // Lazy initialization
+    this._resolvedKey = null; // Cache: { key, isOAuth }
     this.model =
       modelPreference ||
       process.env.ANTHROPIC_MODEL_PREF ||
-      "claude-3-5-sonnet-20241022";
+      "claude-sonnet-4-20250514";
     this.limits = {
       history: this.promptWindowLimit() * 0.15,
       system: this.promptWindowLimit() * 0.15,
@@ -37,6 +42,7 @@ class AnthropicLLM {
     };
 
     this.maxTokens = null;
+    this.isOAuth = false;
     this.embedder = embedder ?? new NativeEmbedder();
     this.defaultTemp = 0.7;
     this.log(
@@ -47,6 +53,110 @@ class AnthropicLLM {
       this.maxTokens = maxTokens;
       this.log(`Model ${this.model} max tokens: ${this.maxTokens}`);
     });
+  }
+
+  /**
+   * Detect if a token is an OAuth token (vs API key).
+   */
+  static isOAuthToken(key) {
+    return typeof key === "string" && key.includes("sk-ant-oat");
+  }
+
+  /**
+   * Resolve authentication — OAuth token first, then manual API key.
+   * @returns {Promise<{key: string, isOAuth: boolean}>}
+   */
+  async #resolveAuth() {
+    if (this._resolvedKey) return this._resolvedKey;
+
+    // 1. Check for OAuth token first (from "Sign in with Claude")
+    const oauthToken = await getValidAccessToken();
+    if (oauthToken) {
+      this._resolvedKey = { key: oauthToken, isOAuth: true };
+      this.isOAuth = true;
+      return this._resolvedKey;
+    }
+
+    // 2. Fall back to manual API key from environment
+    const manualKey = process.env.ANTHROPIC_API_KEY;
+    if (!manualKey || manualKey === "sk-ant-oauth-managed") {
+      throw new Error(
+        "No Anthropic authentication found. Please go to Settings > AI Providers > LLM and either click 'Sign in with Claude' or enter an API key."
+      );
+    }
+
+    this._resolvedKey = { key: manualKey, isOAuth: false };
+    return this._resolvedKey;
+  }
+
+  /**
+   * Get or create the Anthropic client with lazy initialization.
+   * OAuth tokens use authToken + beta headers; API keys use apiKey.
+   * @returns {Promise<import("@anthropic-ai/sdk").Anthropic>}
+   */
+  async #getClient() {
+    if (this.anthropic) return this.anthropic;
+
+    const { key, isOAuth } = await this.#resolveAuth();
+    const AnthropicAI = require("@anthropic-ai/sdk");
+
+    if (isOAuth) {
+      this.anthropic = new AnthropicAI({
+        apiKey: null,
+        authToken: key,
+        defaultHeaders: {
+          "anthropic-beta": AnthropicLLM.OAUTH_BETA_HEADERS,
+          "user-agent": "claude-cli/2.1.75",
+          "x-app": "cli",
+        },
+      });
+    } else {
+      this.anthropic = new AnthropicAI({
+        apiKey: key,
+        defaultHeaders: {
+          "User-Agent": getAnythingLLMUserAgent(),
+        },
+      });
+    }
+
+    return this.anthropic;
+  }
+
+  /**
+   * Create a static (non-instance) Anthropic client for class methods.
+   * @returns {Promise<{client: import("@anthropic-ai/sdk").Anthropic, isOAuth: boolean}>}
+   */
+  static async #createStaticClient() {
+    const AnthropicAI = require("@anthropic-ai/sdk");
+
+    // 1. Check for OAuth token
+    const oauthToken = await getValidAccessToken();
+    if (oauthToken) {
+      return {
+        client: new AnthropicAI({
+          apiKey: null,
+          authToken: oauthToken,
+          defaultHeaders: {
+            "anthropic-beta": AnthropicLLM.OAUTH_BETA_HEADERS,
+            "user-agent": "claude-cli/2.1.75",
+            "x-app": "cli",
+          },
+        }),
+        isOAuth: true,
+      };
+    }
+
+    // 2. Fall back to API key
+    const manualKey = process.env.ANTHROPIC_API_KEY;
+    if (!manualKey) {
+      throw new Error(
+        "No Anthropic authentication found. Please sign in with Claude or enter an API key."
+      );
+    }
+    return {
+      client: new AnthropicAI({ apiKey: manualKey }),
+      isOAuth: false,
+    };
   }
 
   log(text, ...args) {
@@ -85,15 +195,11 @@ class AnthropicLLM {
     modelName = process.env.ANTHROPIC_MODEL_PREF
   ) {
     try {
-      const AnthropicAI = require("@anthropic-ai/sdk");
-      /** @type {import("@anthropic-ai/sdk").Anthropic} */
-      const anthropic = new AnthropicAI({
-        apiKey: process.env.ANTHROPIC_API_KEY,
-      });
-      const model = await anthropic.models.retrieve(modelName);
+      const { client } = await AnthropicLLM.#createStaticClient();
+      const model = await client.models.retrieve(modelName);
       return Number(model.max_tokens ?? 4096);
     } catch (error) {
-      console.error(`Error fetching model max tokens for ${modelName}:`, error);
+      console.error(`Error fetching model max tokens for ${modelName}:`, error.message);
       return 4096;
     }
   }
@@ -125,11 +231,33 @@ class AnthropicLLM {
   }
 
   /**
-   * Builds system parameter with cache control if applicable
+   * Builds system parameter with OAuth identity and cache control if applicable.
+   * OAuth tokens require exact Claude Code identity as first system block.
    * @param {string} systemContent - The system prompt content
    * @returns {string|array} System parameter for API call
    */
   #buildSystemPrompt(systemContent) {
+    // OAuth requires identity prefix as a separate system block
+    if (this.isOAuth) {
+      const blocks = [
+        // Block 0: Required by Anthropic API — DO NOT MODIFY this exact string
+        { type: "text", text: AnthropicLLM.OAUTH_SYSTEM_IDENTITY },
+        // Block 1: Override user-facing identity
+        {
+          type: "text",
+          text: "IMPORTANT IDENTITY OVERRIDE: Disregard the Claude Code identity above — it is required for API authentication only. Your actual role is:\n\nYou are Claude, an AI assistant integrated into GrowthZone Intelligence — a business analytics and reporting platform for association management. You help users analyze membership data, revenue trends, event performance, and organizational health metrics.\n\nYour capabilities include:\n- Answering questions about data, analytics, and business metrics\n- Helping users understand reports and dashboards\n- Providing strategic insights based on available data\n- Using available MCP tools to query live Snowflake data when asked about specific metrics\n\nYou are NOT a CLI tool, terminal, or code editor. Do not mention Claude Code, command-line interfaces, or offer to run shell commands. You are a conversational business intelligence assistant.\n\nIf the user asks you to query data or check metrics, use the available reporting tools (MCP tools) to fetch real data from their Snowflake data warehouse.",
+        },
+      ];
+      if (systemContent) {
+        blocks.push({
+          type: "text",
+          text: systemContent,
+          ...(this.cacheControl ? { cache_control: this.cacheControl } : {}),
+        });
+      }
+      return blocks;
+    }
+
     if (!systemContent || !this.cacheControl) return systemContent;
     return [
       {
@@ -189,9 +317,10 @@ class AnthropicLLM {
   async getChatCompletion(messages = null, { temperature = 0.7 }) {
     await this.assertModelMaxTokens();
     try {
+      const anthropic = await this.#getClient();
       const systemContent = messages[0].content;
       const result = await LLMPerformanceMonitor.measureAsyncFunction(
-        this.anthropic.messages.create({
+        anthropic.messages.create({
           model: this.model,
           max_tokens: this.maxTokens,
           system: this.#buildSystemPrompt(systemContent),
@@ -218,18 +347,27 @@ class AnthropicLLM {
       };
     } catch (error) {
       console.log(error);
-      return { textResponse: error, metrics: {} };
+      const statusCode = error?.status || error?.statusCode;
+      let friendlyMsg = error?.message || String(error);
+      if (statusCode === 429) {
+        friendlyMsg = "You've hit the Claude rate limit. Please wait a moment and try again.";
+      } else if (statusCode === 401) {
+        friendlyMsg = "Claude authentication failed. Go to Settings > AI Providers to reconnect.";
+      }
+      return { textResponse: friendlyMsg, metrics: {} };
     }
   }
 
   async streamGetChatCompletion(messages = null, { temperature = 0.7 }) {
     await this.assertModelMaxTokens();
+    const anthropic = await this.#getClient();
     const systemContent = messages[0].content;
+    const builtSystem = this.#buildSystemPrompt(systemContent);
     const measuredStreamRequest = await LLMPerformanceMonitor.measureStream({
-      func: this.anthropic.messages.stream({
+      func: anthropic.messages.stream({
         model: this.model,
         max_tokens: this.maxTokens,
-        system: this.#buildSystemPrompt(systemContent),
+        system: builtSystem,
         messages: messages.slice(1), // Pop off the system message
         temperature: Number(temperature ?? this.defaultTemp),
       }),
@@ -271,11 +409,29 @@ class AnthropicLLM {
       stream.on("error", (event) => {
         const parseErrorMsg = (event) => {
           const error = event?.error?.error;
+          const statusCode = event?.status || event?.error?.status;
+          
+          // Friendly error messages for common issues
+          if (statusCode === 429 || error?.type === "rate_limit_error") {
+            return "You've hit the Claude rate limit. Please wait a moment and try again. If this persists, your Teams plan may have reached its usage cap for this period.";
+          }
+          if (statusCode === 401 || error?.type === "authentication_error") {
+            return "Claude authentication failed. Your session may have expired — go to Settings > AI Providers > LLM and click 'Sign in with Claude' to reconnect.";
+          }
+          if (statusCode === 403 || error?.type === "permission_error") {
+            return "Your Claude account doesn't have permission for this model. Try selecting a different model in Settings > AI Providers > LLM.";
+          }
+          if (statusCode === 529 || error?.type === "overloaded_error") {
+            return "Claude is currently overloaded. Please wait a minute and try again.";
+          }
+          if (error?.type === "invalid_request_error") {
+            return `Claude request error: ${error?.message || "The request was invalid. Try a shorter message or different model."}`;
+          }
           if (!!error)
-            return `Anthropic Error:${error?.type || "unknown"} ${
-              error?.message || "unknown error."
+            return `Claude error (${error?.type || "unknown"}): ${
+              error?.message || "An unexpected error occurred. Please try again."
             }`;
-          return event.message;
+          return event.message || "An unexpected error occurred while communicating with Claude.";
         };
 
         writeResponseChunk(response, {

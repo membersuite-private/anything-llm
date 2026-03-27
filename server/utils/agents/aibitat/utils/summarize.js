@@ -21,7 +21,7 @@ async function summarizeContent({
   controllerSignal,
   content,
 }) {
-  const llm = Provider.LangChainChatModel(provider, {
+  const llm = await Provider.LangChainChatModel(provider, {
     temperature: 0,
     model: model,
   });

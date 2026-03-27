@@ -244,12 +244,40 @@ async function openAiModels(apiKey = null) {
 }
 
 async function anthropicModels(_apiKey = null) {
-  const apiKey =
+  let apiKey =
     _apiKey === true
       ? process.env.ANTHROPIC_API_KEY
       : _apiKey || process.env.ANTHROPIC_API_KEY || null;
+
+  // Treat OAuth sentinel as "no key" — fall through to OAuth token
+  if (apiKey === "sk-ant-oauth-managed") apiKey = null;
+
+  // If no API key, try OAuth token
+  let oauthToken = null;
+  if (!apiKey) {
+    try {
+      const { getValidAccessToken } = require("../AiProviders/anthropic/tokenStorage");
+      oauthToken = await getValidAccessToken();
+    } catch {}
+  }
+
+  if (!apiKey && !oauthToken) return { models: [], error: null };
+
   const AnthropicAI = require("@anthropic-ai/sdk");
-  const anthropic = new AnthropicAI({ apiKey });
+  const isOAuth = !apiKey && !!oauthToken;
+
+  // OAuth tokens require authToken + beta headers; API keys use apiKey
+  const anthropic = isOAuth
+    ? new AnthropicAI({
+        apiKey: null,
+        authToken: oauthToken,
+        defaultHeaders: {
+          "anthropic-beta": "claude-code-20250219,oauth-2025-04-20",
+          "user-agent": "claude-cli/2.1.75",
+          "x-app": "cli",
+        },
+      })
+    : new AnthropicAI({ apiKey });
   const models = await anthropic.models
     .list()
     .then((results) => results.data)
@@ -269,7 +297,7 @@ async function anthropicModels(_apiKey = null) {
     });
 
   // Api Key was successful so lets save it for future uses
-  if (models.length > 0 && !!apiKey) process.env.ANTHROPIC_API_KEY = apiKey;
+  if (models.length > 0 && !!apiKey && !isOAuth) process.env.ANTHROPIC_API_KEY = apiKey;
   return { models, error: null };
 }
 

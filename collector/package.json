@@ -1,5 +1,5 @@
 {
-  "name": "anything-llm-document-collector",
+  "name": "growthzone-intelligence-document-collector",
   "version": "1.11.1",
   "description": "Document collector server endpoints",
   "main": "index.js",

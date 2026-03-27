@@ -1,0 +1,42 @@
+{
+  "name": "growthzone-intelligence-desktop",
+  "version": "1.0.0",
+  "description": "GrowthZone Intelligence — AI-powered reporting desktop app",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build:mac": "electron-builder --mac",
+    "build:win": "electron-builder --win",
+    "build:linux": "electron-builder --linux",
+    "build:all": "electron-builder --mac --win --linux"
+  },
+  "build": {
+    "appId": "com.growthzone.intelligence",
+    "productName": "GrowthZone Intelligence",
+    "directories": {
+      "output": "dist"
+    },
+    "mac": {
+      "category": "public.app-category.business",
+      "icon": "icon.png",
+      "target": ["dmg", "zip"]
+    },
+    "win": {
+      "icon": "icon.png",
+      "target": ["nsis"]
+    },
+    "linux": {
+      "icon": "icon.png",
+      "target": ["AppImage", "deb"]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": true,
+      "allowToChangeInstallationDirectory": true
+    }
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0"
+  }
+}

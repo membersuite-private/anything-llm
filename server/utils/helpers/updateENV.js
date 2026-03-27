@@ -52,7 +52,7 @@ const KEY_MAPPING = {
   // Anthropic Settings
   AnthropicApiKey: {
     envKey: "ANTHROPIC_API_KEY",
-    checks: [isNotEmpty, validAnthropicApiKey],
+    checks: [validAnthropicApiKey], // Removed isNotEmpty — OAuth doesn't need API key
   },
   AnthropicModelPref: {
     envKey: "ANTHROPIC_MODEL_PREF",
@@ -881,6 +881,17 @@ function validOpenAIKey(input = "") {
 }
 
 function validAnthropicApiKey(input = "") {
+  // Skip validation if OAuth tokens exist (user signed in via Claude Teams)
+  try {
+    const { loadTokens } = require("../AiProviders/anthropic/tokenStorage");
+    const tokens = loadTokens();
+    if (tokens && tokens.accessToken) return null; // OAuth active, no API key needed
+  } catch {}
+  
+  // Accept the OAuth sentinel value from the frontend form
+  if (input === "sk-ant-oauth-managed") return null;
+  
+  if (!input || input.length === 0) return null; // Allow empty when OAuth might be used
   return input.startsWith("sk-ant-")
     ? null
     : "Anthropic Key must start with sk-ant-";
