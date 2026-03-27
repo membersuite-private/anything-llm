@@ -5,6 +5,7 @@ import renderMarkdown from "@/utils/chat/markdown";
 import Citations from "../Citation";
 import { v4 } from "uuid";
 import DOMPurify from "@/utils/chat/purify";
+import ArtifactFrame, { parseArtifacts } from "../Artifacts/index.jsx";
 import { EditMessageForm, useEditMessage } from "./Actions/EditMessage";
 import { useWatchDeleteMessage } from "./Actions/DeleteMessage";
 import TTSMessage from "./Actions/TTSButton";
@@ -312,12 +313,32 @@ const RenderChatContent = memo(
         {thoughtChain && (
           <ThoughtChainComponent content={thoughtChain} messageId={messageId} />
         )}
-        <span
-          className="flex flex-col gap-y-1 text-white light:text-slate-900"
-          dangerouslySetInnerHTML={{
-            __html: DOMPurify.sanitize(renderMarkdown(msgToRender)),
-          }}
-        />
+        {(() => {
+          const parts = parseArtifacts(msgToRender);
+          if (parts.length === 1 && parts[0].type === "text") {
+            return (
+              <span
+                className="flex flex-col gap-y-1 text-white light:text-slate-900"
+                dangerouslySetInnerHTML={{
+                  __html: DOMPurify.sanitize(renderMarkdown(msgToRender)),
+                }}
+              />
+            );
+          }
+          return parts.map((part, i) =>
+            part.type === "artifact" ? (
+              <ArtifactFrame key={i} content={part.content} />
+            ) : (
+              <span
+                key={i}
+                className="flex flex-col gap-y-1 text-white light:text-slate-900"
+                dangerouslySetInnerHTML={{
+                  __html: DOMPurify.sanitize(renderMarkdown(part.content)),
+                }}
+              />
+            )
+          );
+        })()}
       </>
     );
   },
