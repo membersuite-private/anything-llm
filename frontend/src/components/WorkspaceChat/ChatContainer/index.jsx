@@ -313,6 +313,9 @@ function ChatContainerInner({ workspace, knownHistory = [] }) {
         socket.addEventListener("close", (_event) => {
           setAgentSessionActive(false);
           window.dispatchEvent(new CustomEvent(AGENT_SESSION_END));
+          setLoadingResponse(false);
+          setWebsocket(null);
+          setSocketId(null);
           setChatHistory((prev) => [
             ...prev.filter((msg) => !!msg.content),
             {
@@ -327,9 +330,6 @@ function ChatContainerInner({ workspace, knownHistory = [] }) {
               pending: false,
             },
           ]);
-          setLoadingResponse(false);
-          setWebsocket(null);
-          setSocketId(null);
         });
         setWebsocket(socket);
         setAgentSessionActive(true);
