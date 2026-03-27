@@ -256,6 +256,46 @@ class AnthropicProvider extends Provider {
       processedMessages.shift();
     }
 
+    // Validate tool_use/tool_result pairing — Anthropic requires strict alternation.
+    // Every assistant message containing tool_use blocks must be immediately followed
+    // by a user message containing matching tool_result blocks.
+    for (let i = 0; i < processedMessages.length; i++) {
+      const msg = processedMessages[i];
+      if (msg.role !== "assistant" || !Array.isArray(msg.content)) continue;
+
+      const toolUses = msg.content.filter((b) => b.type === "tool_use");
+      if (toolUses.length === 0) continue;
+
+      const nextMsg = processedMessages[i + 1];
+      const existingResults = new Set();
+      if (nextMsg?.role === "user" && Array.isArray(nextMsg.content)) {
+        nextMsg.content
+          .filter((b) => b.type === "tool_result")
+          .forEach((b) => existingResults.add(b.tool_use_id));
+      }
+
+      // Find orphaned tool_use blocks without matching tool_result
+      const orphaned = toolUses.filter((tu) => !existingResults.has(tu.id));
+      if (orphaned.length === 0) continue;
+
+      const syntheticResults = orphaned.map((tu) => ({
+        type: "tool_result",
+        tool_use_id: tu.id,
+        content: "Tool execution completed.",
+      }));
+
+      if (nextMsg?.role === "user" && Array.isArray(nextMsg.content)) {
+        // Append to existing user message
+        nextMsg.content.push(...syntheticResults);
+      } else {
+        // Insert a new user message with tool results
+        processedMessages.splice(i + 1, 0, {
+          role: "user",
+          content: syntheticResults,
+        });
+      }
+    }
+
     return [systemPrompt, processedMessages];
   }
 
