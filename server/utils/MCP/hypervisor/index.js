@@ -306,46 +306,60 @@ class MCPHypervisor {
   /**
    * Build the MCP server environment variables - ensures proper PATH and NODE_PATH
    * inheritance across all platforms and deployment scenarios.
+   * SECURITY: Only passes explicitly configured env vars plus minimal system essentials.
    * @param {Object} server - The server definition
    * @returns {Promise<{env: { [key: string]: string } | {}}}> - The environment variables
    */
   async #buildMCPServerENV(server) {
     const shellEnv = await patchShellEnvironmentPath();
-    let baseEnv = {
-      PATH:
-        shellEnv.PATH ||
-        process.env.PATH ||
-        "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
-      NODE_PATH:
-        shellEnv.NODE_PATH ||
-        process.env.NODE_PATH ||
-        "/usr/local/lib/node_modules",
-      ...shellEnv, // Include all shell environment variables
+    
+    // Build env for MCP child process — DO NOT pass full process.env
+    // System essentials only
+    const safeEnv = {
+      PATH: shellEnv.PATH || process.env.PATH || "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+      HOME: process.env.HOME,
+      LANG: process.env.LANG || 'en_US.UTF-8',
+      NODE_ENV: process.env.NODE_ENV,
+      NODE_PATH: shellEnv.NODE_PATH || process.env.NODE_PATH || "/usr/local/lib/node_modules",
     };
 
     // Docker-specific environment setup
     if (process.env.ANYTHING_LLM_RUNTIME === "docker") {
-      baseEnv = {
-        // Fixed: NODE_PATH should point to modules directory, not node binary
-        NODE_PATH: "/usr/local/lib/node_modules",
-        PATH: "/usr/local/bin:/usr/bin:/bin",
-        ...baseEnv, // Allow inheritance to override docker defaults if needed
-      };
+      safeEnv.NODE_PATH = "/usr/local/lib/node_modules";
+      safeEnv.PATH = "/usr/local/bin:/usr/bin:/bin";
     }
 
-    // No custom environment specified - return base environment
-    if (!server?.env || Object.keys(server.env).length === 0) {
-      return { env: baseEnv };
+    // Add only the env vars explicitly declared in the MCP config
+    if (server?.env && Object.keys(server.env).length > 0) {
+      Object.assign(safeEnv, server.env);
     }
 
-    // Merge user-specified environment with base environment
-    // User environment takes precedence over defaults
-    return {
-      env: {
-        ...baseEnv,
-        ...server.env,
-      },
-    };
+    return { env: safeEnv };
+  }
+
+  /**
+   * Validate MCP server command before spawning to prevent shell injection
+   * @param {string} command - The command to validate
+   * @returns {string} - The validated command
+   * @throws {Error} - If the command is invalid or unsafe
+   */
+  #validateMCPCommand(command) {
+    if (!command || typeof command !== 'string') {
+      throw new Error('MCP command is required and must be a string');
+    }
+
+    // Block shell metacharacters
+    if (/[;&|`$(){}\[\]]/.test(command)) {
+      throw new Error(`MCP command rejected: shell metacharacters not allowed in '${command}'`);
+    }
+
+    // Must be an absolute path or a known command
+    const path = require('path');
+    if (!path.isAbsolute(command) && !['node', 'python', 'python3', 'uv', 'npx'].includes(command)) {
+      throw new Error(`MCP command must be an absolute path or a known runtime: ${command}`);
+    }
+
+    return command;
   }
 
   /**
@@ -419,11 +433,22 @@ class MCPHypervisor {
     // if not stdio then it is http or sse
     if (type !== "stdio") return this.createHttpTransport(server);
 
-    return new StdioClientTransport({
-      command: server.command,
+    // Validate command before spawning
+    const validatedCommand = this.#validateMCPCommand(server.command);
+
+    const transport = new StdioClientTransport({
+      command: validatedCommand,
       args: server?.args ?? [],
       ...(await this.#buildMCPServerENV(server)),
     });
+
+    // NOTE: MCP servers in AnythingLLM use stdio transport and are long-running processes
+    // that stay alive for the lifetime of the parent process. Adding a blanket timeout
+    // would break normal operation since these servers maintain persistent stdio connections.
+    // Process resource limits would need to be implemented at the OS level (ulimits, cgroups)
+    // or through a process supervisor rather than application-level timeouts.
+
+    return transport;
   }
 
   /**
