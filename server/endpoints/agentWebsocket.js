@@ -53,6 +53,8 @@ function agentWebsocket(app) {
       await Telemetry.sendTelemetry("agent_chat_started");
       await agentHandler.createAIbitat({ socket });
       await agentHandler.startAgentCluster();
+      // Agent cluster finished — close the socket to end the session
+      socket?.close();
     } catch (e) {
       console.error(e.message, e);
       socket?.send(JSON.stringify({ type: "wssFailure", content: e.message }));
