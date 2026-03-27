@@ -118,7 +118,7 @@ function RenderAssistantChatContent({ message, messageId }) {
               className="break-words"
               dangerouslySetInnerHTML={{
                 __html: DOMPurify.sanitize(renderMarkdown(part.content)),
-              }}}
+              }}
             />
           )
         );
