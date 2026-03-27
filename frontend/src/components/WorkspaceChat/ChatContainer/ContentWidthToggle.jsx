@@ -2,9 +2,10 @@ import { useState, useEffect, createContext, useContext } from "react";
 
 const WIDTH_KEY = "gz-content-width";
 const MODES = [
-  { key: "auto", label: "Small", chatClass: "max-w-[800px]", inputW: "md:w-[800px]" },
-  { key: "medium", label: "Auto", chatClass: "max-w-[1100px]", inputW: "md:w-[1100px]" },
-  { key: "full", label: "Full", chatClass: "max-w-[96%]", inputW: "md:w-[96%]" },
+  { key: "compact", label: "Compact", chatClass: "max-w-[65ch]", inputW: "md:max-w-[65ch]" },
+  { key: "auto", label: "Auto", chatClass: "max-w-[55vw]", inputW: "md:max-w-[55vw]" },
+  { key: "wide", label: "Wide", chatClass: "max-w-[80vw]", inputW: "md:max-w-[80vw]" },
+  { key: "full", label: "Full", chatClass: "max-w-[96vw]", inputW: "md:max-w-[96vw]" },
 ];
 
 const ContentWidthContext = createContext(null);
@@ -19,13 +20,13 @@ export function ContentWidthProvider({ children }) {
 }
 
 export function useContentWidthContext() {
-  return useContext(ContentWidthContext) || { mode: "medium", widthClass: "max-w-[1100px]", inputWidthClass: "md:w-[1100px]" };
+  return useContext(ContentWidthContext) || { mode: "auto", widthClass: "max-w-[55vw]", inputWidthClass: "md:max-w-[55vw]" };
 }
 
 export function useContentWidth() {
   const [mode, setMode] = useState(() => {
-    if (typeof window === "undefined") return "medium";
-    return localStorage.getItem(WIDTH_KEY) || "medium";
+    if (typeof window === "undefined") return "auto";
+    return localStorage.getItem(WIDTH_KEY) || "auto";
   });
 
   useEffect(() => {
