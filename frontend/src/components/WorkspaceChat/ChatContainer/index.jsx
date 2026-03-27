@@ -1,4 +1,5 @@
 import { useState, useEffect, useContext, useRef } from "react";
+import { flushSync } from "react-dom";
 import ChatHistory from "./ChatHistory";
 import { CLEAR_ATTACHMENTS_EVENT, DndUploaderContext } from "./DnDWrapper";
 import PromptInput, {
@@ -255,8 +256,6 @@ function ChatContainerInner({ workspace, knownHistory = [] }) {
       }
 
       if (!promptMessage || !promptMessage?.userMessage) {
-        // No pending user message — nothing to fetch. Make sure we're not stuck loading.
-        setLoadingResponse(false);
         return false;
       }
 
@@ -315,11 +314,13 @@ function ChatContainerInner({ workspace, knownHistory = [] }) {
         });
 
         socket.addEventListener("close", (_event) => {
-          setAgentSessionActive(false);
+          flushSync(() => {
+            setAgentSessionActive(false);
+            setLoadingResponse(false);
+            setWebsocket(null);
+            setSocketId(null);
+          });
           window.dispatchEvent(new CustomEvent(AGENT_SESSION_END));
-          setLoadingResponse(false);
-          setWebsocket(null);
-          setSocketId(null);
           setChatHistory((prev) => [
             ...prev.filter((msg) => !!msg.content),
             {
