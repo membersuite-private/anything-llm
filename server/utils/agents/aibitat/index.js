@@ -53,7 +53,7 @@ class AIbitat {
     const envMaxToolCalls = parseInt(process.env.AGENT_MAX_TOOL_CALLS, 10);
     return !isNaN(envMaxToolCalls) && envMaxToolCalls > 0
       ? envMaxToolCalls
-      : 10;
+      : 50;
   }
 
   /**

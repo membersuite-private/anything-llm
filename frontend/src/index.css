@@ -730,12 +730,15 @@ dialog::backdrop {
 
 .markdown table {
   width: 100%;
+  table-layout: auto;
   border-collapse: collapse;
+  overflow-x: auto;
+  display: block;
+  max-width: 100%;
   color: #bdbdbe;
   font-size: 13px;
   margin: 30px 0px;
   border-radius: 10px;
-  overflow: hidden;
   font-weight: normal;
 }
 
@@ -753,13 +756,19 @@ dialog::backdrop {
 
 .markdown table th,
 .markdown table td {
-  padding: 8px 15px;
+  padding: 6px 12px;
   border-bottom: 1px solid #cdcdcd2e;
   text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 300px;
 }
 
 .markdown table th {
-  padding: 14px 15px;
+  padding: 14px 12px;
+  position: sticky;
+  top: 0;
 }
 
 .markdown > * a {
