@@ -1,6 +1,7 @@
 /**
  * Anthropic OAuth endpoints for "Sign in with Claude" flow.
  */
+const { validatedRequest } = require("../utils/middleware/validatedRequest");
 const {
   startOAuthFlow,
   waitForOAuthCallback,
@@ -22,7 +23,7 @@ function anthropicOAuthEndpoints(app) {
    * Start OAuth flow — returns authorize URL for browser.
    * Frontend should open this URL in the user's default browser.
    */
-  app.get("/anthropic-oauth/start", async (_req, res) => {
+  app.get("/anthropic-oauth/start", [validatedRequest], async (_req, res) => {
     try {
       // Cancel any existing session
       cancelOAuthFlow();
@@ -56,7 +57,7 @@ function anthropicOAuthEndpoints(app) {
    * Check OAuth status — is user authenticated?
    * Frontend polls this after opening the authorize URL.
    */
-  app.get("/anthropic-oauth/status", async (_req, res) => {
+  app.get("/anthropic-oauth/status", [validatedRequest], async (_req, res) => {
     try {
       const tokens = loadTokens();
       if (!tokens) {
@@ -84,7 +85,7 @@ function anthropicOAuthEndpoints(app) {
   /**
    * Refresh the OAuth token manually.
    */
-  app.post("/anthropic-oauth/refresh", async (_req, res) => {
+  app.post("/anthropic-oauth/refresh", [validatedRequest], async (_req, res) => {
     try {
       const tokens = loadTokens();
       if (!tokens || !tokens.refreshToken) {
@@ -113,7 +114,7 @@ function anthropicOAuthEndpoints(app) {
   /**
    * Logout — clear stored tokens.
    */
-  app.post("/anthropic-oauth/logout", async (_req, res) => {
+  app.post("/anthropic-oauth/logout", [validatedRequest], async (_req, res) => {
     try {
       cancelOAuthFlow();
       clearTokens();
@@ -130,7 +131,7 @@ function anthropicOAuthEndpoints(app) {
    * Get a valid access token (for internal use by Anthropic provider).
    * Auto-refreshes if expired.
    */
-  app.get("/anthropic-oauth/token", async (_req, res) => {
+  app.get("/anthropic-oauth/token", [validatedRequest], async (_req, res) => {
     try {
       const token = await getValidAccessToken();
       if (!token) {
