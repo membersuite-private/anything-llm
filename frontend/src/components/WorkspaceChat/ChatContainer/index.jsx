@@ -254,7 +254,11 @@ function ChatContainerInner({ workspace, knownHistory = [] }) {
         return;
       }
 
-      if (!promptMessage || !promptMessage?.userMessage) return false;
+      if (!promptMessage || !promptMessage?.userMessage) {
+        // No pending user message — nothing to fetch. Make sure we're not stuck loading.
+        setLoadingResponse(false);
+        return false;
+      }
 
       // If running and edit or regeneration, this history will already have attachments
       // so no need to parse the current state.
