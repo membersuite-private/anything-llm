@@ -82,9 +82,9 @@ export default function ArtifactFrame({ content }) {
     if (isSVG) {
       return `<!DOCTYPE html>
 <html><head><style>
-  html, body { margin: 0; padding: 0; background: transparent; overflow: hidden; }
+  html, body { margin: 0; padding: 0; background: #1e1e2e; overflow: hidden; }
   body { display: flex; justify-content: center; }
-  svg { max-width: 100%; height: auto; display: block; }
+  svg { width: 100%; height: auto; display: block; }
 </style></head><body>${content}${resizeScript}</body></html>`;
     }
 
@@ -179,7 +179,7 @@ export default function ArtifactFrame({ content }) {
           className="w-full border-0"
           style={{
             height: frameHeight > 0 ? `${frameHeight}px` : "200px",
-            background: "transparent",
+            background: "#1e1e2e",
             transition: "height 0.15s ease",
           }}
           title="Artifact preview"
