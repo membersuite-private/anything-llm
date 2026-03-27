@@ -59,8 +59,27 @@ module.exports.SqlAgentQuery = {
           },
           required: ["database_id", "table_name"],
           handler: async function ({ database_id = "", sql_query = "" }) {
+            function validateSqlQuery(sql) {
+              const normalized = sql.trim().toUpperCase();
+              const forbidden = ['DROP', 'DELETE', 'TRUNCATE', 'ALTER', 'CREATE', 'INSERT', 'UPDATE', 'GRANT', 'REVOKE', 'EXEC', 'EXECUTE', 'CALL'];
+              for (const keyword of forbidden) {
+                // Check if it starts with a forbidden keyword or contains it as a statement
+                if (normalized.startsWith(keyword) || normalized.includes(`;\n${keyword}`) || normalized.includes(`; ${keyword}`)) {
+                  throw new Error(`SQL query rejected: ${keyword} statements are not allowed. Only SELECT queries are permitted.`);
+                }
+              }
+              // Must start with SELECT, WITH, EXPLAIN, or SHOW
+              const allowed = ['SELECT', 'WITH', 'EXPLAIN', 'SHOW', 'DESCRIBE', 'DESC'];
+              if (!allowed.some(kw => normalized.startsWith(kw))) {
+                throw new Error('SQL query rejected: Only SELECT/WITH/EXPLAIN/SHOW queries are permitted.');
+              }
+            }
+
             this.super.handlerProps.log(`Using the sql-query tool.`);
             try {
+              // Validate SQL query before execution
+              validateSqlQuery(sql_query);
+
               const databaseConfig = (await listSQLConnections()).find(
                 (db) => db.database_id === database_id
               );

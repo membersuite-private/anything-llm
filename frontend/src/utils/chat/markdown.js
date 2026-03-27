@@ -12,7 +12,7 @@ import hljsDefineSvelte from "./hljs-libraries/svelte";
 hljs.registerLanguage("svelte", hljsDefineSvelte);
 
 const markdown = markdownIt({
-  html: Appearance.get("renderHTML") ?? false,
+  html: false, // Security: Disable HTML to prevent XSS attacks
   typographer: true,
   highlight: function (code, lang) {
     const uuid = v4();

@@ -7,9 +7,39 @@ const { safeJsonParse } = require("../../http");
  * @returns {Promise<string>} Response data
  */
 async function executeApiCall(config, context) {
+  function validateUrl(urlString) {
+    try {
+      const url = new URL(urlString);
+      // Block private/internal IPs
+      const hostname = url.hostname.toLowerCase();
+      const blocked = [
+        'localhost', '127.0.0.1', '0.0.0.0', '::1',
+        '169.254.169.254', // AWS metadata
+        'metadata.google.internal', // GCP metadata
+      ];
+      if (blocked.includes(hostname)) {
+        throw new Error(`URL blocked: ${hostname} is not allowed`);
+      }
+      // Block private IP ranges
+      if (/^(10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.)/.test(hostname)) {
+        throw new Error(`URL blocked: private IP range not allowed`);
+      }
+      // Only allow http/https
+      if (!['http:', 'https:'].includes(url.protocol)) {
+        throw new Error(`URL blocked: only HTTP/HTTPS allowed`);
+      }
+      return url.toString();
+    } catch (e) {
+      throw new Error(`Invalid URL: ${e.message}`);
+    }
+  }
+
   const { url, method, headers = [], body, bodyType, formData } = config;
   const { introspect, logger } = context;
   logger(`\x1b[43m[AgentFlowToolExecutor]\x1b[0m - executing API Call block`);
+  
+  // Validate URL before making request
+  const validatedUrl = validateUrl(url);
   introspect(`Making ${method} request to external API...`);
 
   const requestConfig = {
@@ -38,8 +68,8 @@ async function executeApiCall(config, context) {
   }
 
   try {
-    introspect(`Sending body to ${url}: ${requestConfig?.body || "No body"}`);
-    const response = await fetch(url, requestConfig);
+    introspect(`Sending body to ${validatedUrl}: ${requestConfig?.body || "No body"}`);
+    const response = await fetch(validatedUrl, requestConfig);
     if (!response.ok) {
       introspect(`Request failed with status ${response.status}`);
       throw new Error(`HTTP error! status: ${response.status}`);
