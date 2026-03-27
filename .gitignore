@@ -10,3 +10,7 @@ aws_cf_deploy_anything_llm.json
 yarn.lock
 *.bak
 .idea
+desktop/dist/
+server/storage/anthropic_oauth.json
+test-results/
+package-lock.json
