@@ -214,7 +214,8 @@ async function startOAuthFlow() {
   }
 
   const { verifier, challenge } = generatePKCE();
-  const callbackServer = await startCallbackServer(verifier);
+  const state = require("crypto").randomBytes(32).toString("base64url");
+  const callbackServer = await startCallbackServer(state);
 
   const authParams = new URLSearchParams({
     code: "true",
@@ -224,7 +225,7 @@ async function startOAuthFlow() {
     scope: SCOPES,
     code_challenge: challenge,
     code_challenge_method: "S256",
-    state: verifier,
+    state: state,
   });
 
   const authorizeUrl = `${AUTHORIZE_URL}?${authParams.toString()}`;
@@ -232,6 +233,7 @@ async function startOAuthFlow() {
   // Store session state
   activeSession = {
     verifier,
+    state,
     callbackServer,
     authorizeUrl,
     startedAt: Date.now(),
