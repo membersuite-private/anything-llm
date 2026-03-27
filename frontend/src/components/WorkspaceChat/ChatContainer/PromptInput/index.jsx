@@ -18,6 +18,7 @@ import usePromptInputStorage from "@/hooks/usePromptInputStorage";
 import ToolsMenu, { TOOLS_MENU_KEYBOARD_EVENT } from "./ToolsMenu";
 import { useSearchParams } from "react-router-dom";
 import { useIsAgentSessionActive } from "@/utils/chat/agent";
+import { useContentWidthContext } from "../ContentWidthToggle";
 
 export const PROMPT_INPUT_ID = "primary-prompt-input";
 export const PROMPT_INPUT_EVENT = "set_prompt_input";
@@ -58,6 +59,7 @@ export default function PromptInput({
   const redoStack = useRef([]);
   const { textSizeClass } = useTextSize();
   const [searchParams] = useSearchParams();
+  const { widthClass, inputWidthClass } = useContentWidthContext();
 
   // Synchronizes prompt input value with localStorage, scoped to the current thread.
   usePromptInputStorage({
@@ -324,13 +326,13 @@ export default function PromptInput({
         className={
           centered
             ? "flex flex-col gap-y-1 rounded-t-lg w-full items-center"
-            : "flex flex-col gap-y-1 rounded-t-lg md:w-full w-full mx-auto max-w-[750px] items-center"
+            : `flex flex-col gap-y-1 rounded-t-lg md:w-full w-full mx-auto ${widthClass} items-center`
         }
       >
         <div
           className={`flex items-center rounded-lg md:w-full ${centered ? "mb-0" : "mb-4"}`}
         >
-          <div className="relative w-[95vw] md:w-[750px]">
+          <div className={`relative w-[95vw] ${inputWidthClass}`}>
             <ToolsMenu
               workspace={workspace}
               showing={showTools}

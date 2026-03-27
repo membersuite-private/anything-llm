@@ -22,6 +22,7 @@ import Appearance from "@/models/appearance";
 import useTextSize from "@/hooks/useTextSize";
 import useChatHistoryScrollHandle from "@/hooks/useChatHistoryScrollHandle";
 import { ThoughtExpansionProvider } from "./ThoughtContainer";
+import { useContentWidthContext } from "../ContentWidthToggle";
 
 export default forwardRef(function (
   {
@@ -43,6 +44,7 @@ export default forwardRef(function (
   const isStreaming = history[history.length - 1]?.animate;
   const { showScrollbar } = Appearance.getSettings();
   const { textSizeClass } = useTextSize();
+  const { widthClass } = useContentWidthContext();
 
   useEffect(() => {
     if (!isUserScrolling && (isAtBottom || isStreaming)) {
@@ -215,7 +217,7 @@ export default forwardRef(function (
         ref={chatHistoryRef}
         onScroll={handleScroll}
       >
-        <div className="w-full max-w-[750px]">
+        <div className={`w-full ${widthClass}`}>
           {compiledHistory.map((item, index) =>
             Array.isArray(item) ? renderStatusResponse(item, index) : item
           )}

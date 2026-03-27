@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import { SlidersHorizontal } from "@phosphor-icons/react";
 import useLoginMode from "@/hooks/useLoginMode";
 import { useTranslation } from "react-i18next";
+import { useContentWidthContext } from "../ContentWidthToggle";
 
 function getTextSizes(t) {
   return [
@@ -15,6 +16,7 @@ export default function TextSizeMenu() {
   const { t } = useTranslation();
   const TEXT_SIZES = useMemo(() => getTextSizes(t), [t]);
   const mode = useLoginMode();
+  const { mode: widthMode, setMode: setWidthMode, MODES: WIDTH_MODES } = useContentWidthContext();
   const [showMenu, setShowMenu] = useState(false);
   const [selectedSize, setSelectedSize] = useState(
     window.localStorage.getItem("anythingllm_text_size") || "normal"
@@ -90,6 +92,26 @@ export default function TextSizeMenu() {
               }`}
             >
               <span className={`${textClass} text-white light:text-slate-900`}>
+                {label}
+              </span>
+            </div>
+          ))}
+
+          <div className="border-t border-zinc-700 light:border-slate-300 mt-1 pt-1 w-full" />
+          <p className="text-[10px] font-medium text-zinc-400 light:text-slate-500 px-2 mb-0.5">
+            Content Width
+          </p>
+          {WIDTH_MODES.map(({ key, label }) => (
+            <div
+              key={key}
+              onClick={() => setWidthMode(key)}
+              className={`flex items-center px-2 py-1 rounded cursor-pointer ${
+                widthMode === key
+                  ? "bg-zinc-700 light:bg-slate-200"
+                  : "hover:bg-zinc-700/50 light:hover:bg-slate-100"
+              }`}
+            >
+              <span className="text-sm text-white light:text-slate-900">
                 {label}
               </span>
             </div>

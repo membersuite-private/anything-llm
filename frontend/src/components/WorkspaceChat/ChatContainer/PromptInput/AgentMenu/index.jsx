@@ -4,6 +4,7 @@ import { At } from "@phosphor-icons/react";
 import { useIsAgentSessionActive } from "@/utils/chat/agent";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
+import { useContentWidthContext } from "../../ContentWidthToggle";
 
 export default function AvailableAgentsButton({ showing, setShowAgents }) {
   const { t } = useTranslation();
@@ -45,6 +46,7 @@ export function AvailableAgents({
   const agentSessionActive = useIsAgentSessionActive();
   const [searchParams] = useSearchParams();
   const { t } = useTranslation();
+  const { widthClass } = useContentWidthContext();
 
   /*
    * @checklist-item
@@ -85,7 +87,7 @@ export function AvailableAgents({
           className={
             centered
               ? "w-full flex justify-center md:justify-start absolute top-full mt-2 left-0 z-10 px-4 md:px-0 md:pl-[57px]"
-              : "flex justify-center md:justify-start absolute bottom-[130px] md:bottom-[150px] left-0 right-0 z-10 max-w-[750px] mx-auto px-4 md:px-0 md:pl-[57px]"
+              : `flex justify-center md:justify-start absolute bottom-[130px] md:bottom-[150px] left-0 right-0 z-10 ${widthClass} mx-auto px-4 md:px-0 md:pl-[57px]`
           }
         >
           <div

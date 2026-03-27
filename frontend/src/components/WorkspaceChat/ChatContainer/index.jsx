@@ -34,8 +34,17 @@ import SuggestedMessages from "@/components/lib/SuggestedMessages";
 import TextSizeMenu from "./TextSizeMenu";
 import WorkspaceModelPicker from "./WorkspaceModelPicker";
 import SourcesSidebar, { SourcesSidebarProvider } from "./SourcesSidebar";
+import { ContentWidthProvider, useContentWidthContext } from "./ContentWidthToggle";
 
 export default function ChatContainer({ workspace, knownHistory = [] }) {
+  return (
+    <ContentWidthProvider>
+      <ChatContainerInner workspace={workspace} knownHistory={knownHistory} />
+    </ContentWidthProvider>
+  );
+}
+
+function ChatContainerInner({ workspace, knownHistory = [] }) {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { threadSlug = null } = useParams();
@@ -46,6 +55,8 @@ export default function ChatContainer({ workspace, knownHistory = [] }) {
   const { files, parseAttachments } = useContext(DndUploaderContext);
   const { chatHistoryRef } = useChatContainerQuickScroll();
   const pendingMessageChecked = useRef(false);
+
+  const { mode: widthMode, setMode: setWidthMode, widthClass } = useContentWidthContext();
 
   const { listening, resetTranscript } = useSpeechRecognition({
     clearTranscriptOnListen: true,
@@ -371,7 +382,7 @@ export default function ChatContainer({ workspace, knownHistory = [] }) {
         <WorkspaceModelPicker workspaceSlug={workspace.slug} />
         <DnDFileUploaderWrapper>
           <div className="flex flex-col h-full w-full items-center justify-center">
-            <div className="flex flex-col items-center w-full max-w-[750px]">
+            <div className={`flex flex-col items-center w-full ${widthClass}`}>
               <h1 className="text-white text-xl md:text-2xl mb-11 text-center">
                 {t("main-page.greeting")}
               </h1>
