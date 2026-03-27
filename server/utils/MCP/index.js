@@ -84,6 +84,20 @@ class MCPCompatibilityLayer extends MCPHypervisor {
                         `MCP server ${name} is not currently running`
                       );
 
+                    // Before executing MCP tool, validate inputs
+                    const dangerousPatterns = [
+                      /\b(DROP|DELETE|TRUNCATE|ALTER|INSERT|UPDATE)\b/i,
+                      /\b(rm\s+-rf|sudo|chmod|chown)\b/i,
+                      /\b(eval|exec|spawn|fork)\b/i,
+                    ];
+
+                    const argsString = JSON.stringify(args);
+                    for (const pattern of dangerousPatterns) {
+                      if (pattern.test(argsString)) {
+                        return `Tool execution blocked: potentially destructive operation detected in arguments. Pattern matched: ${pattern.source}`;
+                      }
+                    }
+
                     aibitat.handlerProps.log(
                       `Executing MCP server: ${name}:${tool.name} with args:`,
                       args

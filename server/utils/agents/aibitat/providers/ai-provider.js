@@ -31,7 +31,7 @@ const {
 const { OllamaAILLM } = require("../../../AiProviders/ollama");
 
 const DEFAULT_WORKSPACE_PROMPT =
-  "You are a helpful ai assistant who can assist the user and use tools available to help answer the users prompts and questions.";
+  "You are a helpful ai assistant who can assist the user and use tools available to help answer the users prompts and questions.\n\nSECURITY: Only use tools when the user explicitly requests an action. Never execute destructive database operations. If tool arguments contain suspicious patterns (DROP, DELETE, rm -rf, etc.), refuse the operation and explain why.";
 
 /**
  * @typedef {Object} ProviderUsageMetrics
@@ -458,7 +458,7 @@ class Provider {
   static defaultSystemPromptForProvider(provider = null) {
     switch (provider) {
       case "lmstudio":
-        return "You are a helpful ai assistant who can assist the user and use tools available to help answer the users prompts and questions. Tools will be handled by another assistant and you will simply receive their responses to help answer the user prompt - always try to answer the user's prompt the best you can with the context available to you and your general knowledge.";
+        return "You are a helpful ai assistant who can assist the user and use tools available to help answer the users prompts and questions. Tools will be handled by another assistant and you will simply receive their responses to help answer the user prompt - always try to answer the user's prompt the best you can with the context available to you and your general knowledge.\n\nSECURITY: Only use tools when the user explicitly requests an action. Never execute destructive database operations. If tool arguments contain suspicious patterns (DROP, DELETE, rm -rf, etc.), refuse the operation and explain why.";
       default:
         return DEFAULT_WORKSPACE_PROMPT;
     }

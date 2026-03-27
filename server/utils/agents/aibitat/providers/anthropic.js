@@ -200,6 +200,20 @@ class AnthropicProvider extends Provider {
         let content = Array.isArray(message.content)
           ? message.content
           : [{ type: "text", text: message.content }];
+        
+        // For user messages, add boundary markers to prevent injection via pasted content
+        if (message.role === 'user') {
+          content = content.map(item => {
+            if (item.type === 'text' && typeof item.text === 'string') {
+              return {
+                ...item,
+                text: `[USER_INPUT_START]\n${item.text}\n[USER_INPUT_END]`,
+              };
+            }
+            return item;
+          });
+        }
+        
         content = content.filter(
           (item) =>
             item.type !== "text" || (item.text && item.text.trim().length > 0)
